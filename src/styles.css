@@ -211,6 +211,20 @@
   }
 }
 
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 16px oklch(0.62 0.24 25 / 0.5);
+  }
+  50% {
+    box-shadow: 0 0 28px oklch(0.62 0.24 25 / 0.85);
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
 @layer utilities {
   .scrollbar-thin {
     scrollbar-width: thin;
@@ -231,22 +245,10 @@
     background: oklch(0.66 0.22 32 / 0.6);
   }
 
-  @keyframes pulse-glow {
-    0%, 100% {
-      box-shadow: 0 0 16px oklch(0.62 0.24 25 / 0.5);
-    }
-    50% {
-      box-shadow: 0 0 28px oklch(0.62 0.24 25 / 0.85);
-    }
-  }
   .animate-pulse-glow {
     animation: pulse-glow 2s ease-in-out infinite;
   }
 
-  @keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
-  }
   .animate-shimmer {
     background: linear-gradient(
       90deg,

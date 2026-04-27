@@ -1,4 +1,7 @@
-import { generateInsights } from "@/lib/dashboard/insights";
+import {
+  generateInsights,
+  generateReverseInsights,
+} from "@/lib/dashboard/insights";
 import type { Gaiola } from "@/lib/dashboard/types";
 import { useMemo } from "react";
 import { motion } from "framer-motion";
@@ -19,8 +22,24 @@ const STYLE = {
   success: "border-success/40 text-success",
 } as const;
 
-export function InsightsPanel({ rows }: { rows: Gaiola[] }) {
-  const insights = useMemo(() => generateInsights(rows), [rows]);
+/**
+ * mode="operation"  → insights de monitoramento (risco/lost/atRisk).
+ * mode="reverse"    → insights do buffer reverso (sem conceito de risco).
+ */
+export function InsightsPanel({
+  rows,
+  mode = "operation",
+}: {
+  rows: Gaiola[];
+  mode?: "operation" | "reverse";
+}) {
+  const insights = useMemo(
+    () =>
+      mode === "reverse"
+        ? generateReverseInsights(rows)
+        : generateInsights(rows),
+    [rows, mode],
+  );
 
   return (
     <motion.div

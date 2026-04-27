@@ -159,9 +159,10 @@ export function OperationScreen() {
         )}
       </AnimatePresence>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {showSkeleton ? (
           <>
+            <KpiSkeleton />
             <KpiSkeleton />
             <KpiSkeleton />
             <KpiSkeleton />
@@ -186,6 +187,20 @@ export function OperationScreen() {
             />
             <KpiCard
               index={2}
+              label="Aging médio"
+              value={
+                withAging.length > 0 ? `${avgAging.toFixed(1)}d` : "—"
+              }
+              hint={
+                withAging.length > 0
+                  ? `Máx ${maxAging.toFixed(1)}d · ${atRiskCount} em atenção`
+                  : "Sem datas válidas"
+              }
+              tone={agingTone}
+              icon={<Clock className="h-5 w-5" />}
+            />
+            <KpiCard
+              index={3}
               label="Pacotes em risco LOST"
               value={lostPacotes.toLocaleString("pt-BR")}
               hint=">14 dias na operação"
@@ -193,7 +208,7 @@ export function OperationScreen() {
               icon={<Box className="h-5 w-5" />}
             />
             <KpiCard
-              index={3}
+              index={4}
               label="Gaiolas em risco"
               value={lostGaiolas.toLocaleString("pt-BR")}
               hint="Status LOST"

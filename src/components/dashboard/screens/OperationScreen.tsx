@@ -22,6 +22,7 @@ import {
 import {
   ArrowDownAZ,
   Box,
+  Clock,
   Container,
   Package,
   ShieldAlert,
@@ -119,6 +120,17 @@ export function OperationScreen() {
     .filter((r) => r.isLost)
     .reduce((s, r) => s + r.estimatedPackages, 0);
 
+  // Aging metrics — somente gaiolas com data válida entram no cálculo
+  const withAging = filtered.filter((r) => r.dataHora);
+  const avgAging =
+    withAging.length > 0
+      ? withAging.reduce((s, r) => s + r.agingDays, 0) / withAging.length
+      : 0;
+  const maxAging = withAging.reduce((m, r) => Math.max(m, r.agingDays), 0);
+  const atRiskCount = filtered.filter((r) => r.isAtRisk && !r.isLost).length;
+  const agingTone: "default" | "warning" | "danger" =
+    avgAging >= 14 ? "danger" : avgAging >= 10 ? "warning" : "default";
+
   const ehaCount = filtered.filter((r) => r.buffer === "EHA").length;
   const rtsCount = filtered.filter((r) => r.buffer === "RTS").length;
   const donutData = [
@@ -147,9 +159,10 @@ export function OperationScreen() {
         )}
       </AnimatePresence>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {showSkeleton ? (
           <>
+            <KpiSkeleton />
             <KpiSkeleton />
             <KpiSkeleton />
             <KpiSkeleton />
@@ -174,6 +187,20 @@ export function OperationScreen() {
             />
             <KpiCard
               index={2}
+              label="Aging médio"
+              value={
+                withAging.length > 0 ? `${avgAging.toFixed(1)}d` : "—"
+              }
+              hint={
+                withAging.length > 0
+                  ? `Máx ${maxAging.toFixed(1)}d · ${atRiskCount} em atenção`
+                  : "Sem datas válidas"
+              }
+              tone={agingTone}
+              icon={<Clock className="h-5 w-5" />}
+            />
+            <KpiCard
+              index={3}
               label="Pacotes em risco LOST"
               value={lostPacotes.toLocaleString("pt-BR")}
               hint=">14 dias na operação"
@@ -181,7 +208,7 @@ export function OperationScreen() {
               icon={<Box className="h-5 w-5" />}
             />
             <KpiCard
-              index={3}
+              index={4}
               label="Gaiolas em risco"
               value={lostGaiolas.toLocaleString("pt-BR")}
               hint="Status LOST"

@@ -1,10 +1,25 @@
 import { useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useDashboard } from "@/lib/dashboard/context";
 import { KpiCard } from "@/components/dashboard/KpiCard";
-import { FiltersBar, applyFilters, initialFilters } from "@/components/dashboard/FiltersBar";
-import { InsightsPanel } from "@/components/dashboard/InsightsPanel";
 import {
-  AlertOctagon,
+  FiltersBar,
+  applyFilters,
+  useFilters,
+} from "@/components/dashboard/FiltersBar";
+import { InsightsPanel } from "@/components/dashboard/InsightsPanel";
+import { AlertBanner } from "@/components/dashboard/AlertBanner";
+import {
+  CategoryPills,
+  type CategoryOption,
+} from "@/components/dashboard/CategoryPills";
+import {
+  EmptyState,
+  ErrorState,
+  KpiSkeleton,
+  TableSkeleton,
+} from "@/components/dashboard/States";
+import {
   ArrowDownAZ,
   Box,
   Container,
@@ -21,23 +36,80 @@ import {
 import { cn } from "@/lib/utils";
 import type { Gaiola } from "@/lib/dashboard/types";
 import { format } from "date-fns";
+import { usePersistedState } from "@/hooks/use-persisted-state";
+
+/** Mutually exclusive operational categories — Tela 1 */
+const CATEGORY_DEFS: Omit<CategoryOption, "count">[] = [
+  {
+    id: "eha-online",
+    label: "EHA Online",
+    match: (cat, buf) => buf === "EHA" && cat === "Online",
+  },
+  {
+    id: "eha-all",
+    label: "EHA",
+    match: (_cat, buf) => buf === "EHA",
+  },
+  {
+    id: "off-com-id",
+    label: "Off com ID",
+    match: (cat) => cat === "Off com ID",
+  },
+  {
+    id: "off-sem-id",
+    label: "Off sem ID",
+    match: (cat) => cat === "Salvados sem ID" || cat === "Outros",
+  },
+  {
+    id: "online",
+    label: "Online (RTS)",
+    match: (cat, buf) => buf === "RTS" && cat === "Online",
+  },
+];
 
 export function OperationScreen() {
-  const { rows, loading, error } = useDashboard();
-  const [filters, setFilters] = useState(initialFilters);
+  const { rows, loading, error, refresh } = useDashboard();
+  const { filters, setFilters, effective } = useFilters("rts.filters.operation");
+  const [activeCat, setActiveCat] = usePersistedState<string>(
+    "rts.filters.operation.cat",
+    "all",
+  );
 
-  // Tela 1 foco: EHA + RTS (esconder Salvados)
+  // Tela 1: foco em EHA + RTS (esconder Salvados desta visão)
   const opRows = useMemo(
     () => rows.filter((r) => r.buffer !== "SALVADOS"),
     [rows],
   );
-  const filtered = useMemo(() => applyFilters(opRows, filters), [opRows, filters]);
+
+  // Aplicar filtro exclusivo de categoria PRIMEIRO
+  const catFiltered = useMemo(() => {
+    if (activeCat === "all") return opRows;
+    const def = CATEGORY_DEFS.find((c) => c.id === activeCat);
+    if (!def) return opRows;
+    return opRows.filter((r) => def.match(r.categoria, r.buffer));
+  }, [opRows, activeCat]);
+
+  const filtered = useMemo(
+    () => applyFilters(catFiltered, effective),
+    [catFiltered, effective],
+  );
+
   const sorted = useMemo(
     () =>
       [...filtered].sort(
         (a, b) => (b.dataHora ? b.agingHours : 0) - (a.dataHora ? a.agingHours : 0),
       ),
     [filtered],
+  );
+
+  // Counts per category for the pills (computed on opRows pre-search)
+  const categories = useMemo<CategoryOption[]>(
+    () =>
+      CATEGORY_DEFS.map((c) => ({
+        ...c,
+        count: opRows.filter((r) => c.match(r.categoria, r.buffer)).length,
+      })),
+    [opRows],
   );
 
   const totalGaiolas = filtered.length;
@@ -54,57 +126,80 @@ export function OperationScreen() {
     { name: "RTS", value: rtsCount, fill: "var(--color-chart-1)" },
   ];
 
+  const showSkeleton = loading && rows.length === 0;
+  const showError = !!error && rows.length === 0;
+
   return (
     <div className="space-y-5">
       {/* alert bar */}
-      {lostGaiolas > 0 && (
-        <div className="animate-pulse-glow flex items-center gap-3 overflow-hidden rounded-2xl border border-destructive/50 bg-destructive/10 px-5 py-3 backdrop-blur">
-          <AlertOctagon className="h-5 w-5 shrink-0 text-destructive" />
-          <div className="flex-1">
-            <p className="text-sm font-bold text-destructive">
-              ⚠ {lostGaiolas} gaiola(s) em risco de LOST
-            </p>
-            <p className="text-xs text-destructive/80">
-              Aging acima de 14 dias detectado · Aprox. {lostPacotes.toLocaleString("pt-BR")}{" "}
-              pacote(s) requerem tratativa imediata
-            </p>
-          </div>
-          <span className="hidden text-[11px] font-semibold uppercase tracking-wider text-destructive/80 md:block">
-            Ação requerida
-          </span>
-        </div>
-      )}
+      <AnimatePresence>
+        {lostGaiolas > 0 && (
+          <AlertBanner
+            tone="danger"
+            title={`⚠ ${lostGaiolas} gaiola(s) em risco de LOST`}
+            description={`Aging acima de 14 dias detectado · Aprox. ${lostPacotes.toLocaleString("pt-BR")} pacote(s) requerem tratativa imediata`}
+            action={
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-destructive/80">
+                Ação requerida
+              </span>
+            }
+          />
+        )}
+      </AnimatePresence>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard
-          label="Total de pacotes"
-          value={totalPacotes.toLocaleString("pt-BR")}
-          hint="Estimativa por perfil"
-          icon={<Package className="h-5 w-5" />}
-        />
-        <KpiCard
-          label="Total de gaiolas"
-          value={totalGaiolas.toLocaleString("pt-BR")}
-          hint={`${ehaCount} EHA · ${rtsCount} RTS`}
-          icon={<Container className="h-5 w-5" />}
-        />
-        <KpiCard
-          label="Pacotes em risco LOST"
-          value={lostPacotes.toLocaleString("pt-BR")}
-          hint=">14 dias na operação"
-          tone="danger"
-          icon={<Box className="h-5 w-5" />}
-        />
-        <KpiCard
-          label="Gaiolas em risco"
-          value={lostGaiolas.toLocaleString("pt-BR")}
-          hint="Status LOST"
-          tone="danger"
-          icon={<ShieldAlert className="h-5 w-5" />}
-        />
+        {showSkeleton ? (
+          <>
+            <KpiSkeleton />
+            <KpiSkeleton />
+            <KpiSkeleton />
+            <KpiSkeleton />
+          </>
+        ) : (
+          <>
+            <KpiCard
+              index={0}
+              label="Total de pacotes"
+              value={totalPacotes.toLocaleString("pt-BR")}
+              hint="Estimativa por perfil"
+              icon={<Package className="h-5 w-5" />}
+            />
+            <KpiCard
+              index={1}
+              label="Total de gaiolas"
+              value={totalGaiolas.toLocaleString("pt-BR")}
+              hint={`${ehaCount} EHA · ${rtsCount} RTS`}
+              icon={<Container className="h-5 w-5" />}
+              tone="info"
+            />
+            <KpiCard
+              index={2}
+              label="Pacotes em risco LOST"
+              value={lostPacotes.toLocaleString("pt-BR")}
+              hint=">14 dias na operação"
+              tone="danger"
+              icon={<Box className="h-5 w-5" />}
+            />
+            <KpiCard
+              index={3}
+              label="Gaiolas em risco"
+              value={lostGaiolas.toLocaleString("pt-BR")}
+              hint="Status LOST"
+              tone="danger"
+              icon={<ShieldAlert className="h-5 w-5" />}
+            />
+          </>
+        )}
       </div>
 
-      <FiltersBar rows={opRows} value={filters} onChange={setFilters} />
+      <CategoryPills options={categories} value={activeCat} onChange={setActiveCat} />
+
+      <FiltersBar
+        rows={catFiltered}
+        value={filters}
+        onChange={setFilters}
+        hideCategoria
+      />
 
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="glass rounded-2xl p-5 lg:col-span-2">
@@ -117,10 +212,26 @@ export function OperationScreen() {
               {sorted.length} itens
             </span>
           </div>
-          <RegistryTable rows={sorted} loading={loading} error={error} />
+          {showError ? (
+            <ErrorState message={error!} onRetry={refresh} />
+          ) : showSkeleton ? (
+            <TableSkeleton />
+          ) : sorted.length === 0 ? (
+            <EmptyState
+              title="Nenhum registro corresponde aos filtros"
+              description="Tente limpar os filtros ou ajustar a categoria."
+            />
+          ) : (
+            <RegistryTable rows={sorted} />
+          )}
         </div>
 
-        <div className="glass rounded-2xl p-5">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.1 }}
+          className="glass rounded-2xl p-5"
+        >
           <h3 className="mb-3 text-sm font-bold uppercase tracking-wider">
             Ocupação do buffer
           </h3>
@@ -135,6 +246,7 @@ export function OperationScreen() {
                   dataKey="value"
                   stroke="oklch(0.10 0 0)"
                   strokeWidth={2}
+                  isAnimationActive={false}
                 >
                   {donutData.map((d, i) => (
                     <Cell key={i} fill={d.fill} />
@@ -166,7 +278,7 @@ export function OperationScreen() {
               total={ehaCount + rtsCount || 1}
             />
           </div>
-        </div>
+        </motion.div>
       </div>
 
       <InsightsPanel rows={filtered} />
@@ -204,38 +316,7 @@ function LegendItem({
   );
 }
 
-function RegistryTable({
-  rows,
-  loading,
-  error,
-}: {
-  rows: Gaiola[];
-  loading: boolean;
-  error: string | null;
-}) {
-  if (loading && rows.length === 0) {
-    return (
-      <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
-        Carregando registros...
-      </div>
-    );
-  }
-  if (error && rows.length === 0) {
-    return (
-      <div className="flex h-40 flex-col items-center justify-center gap-1 text-sm text-destructive">
-        <AlertOctagon className="h-5 w-5" />
-        Falha ao carregar dados: {error}
-      </div>
-    );
-  }
-  if (rows.length === 0) {
-    return (
-      <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
-        Nenhum registro corresponde aos filtros.
-      </div>
-    );
-  }
-
+function RegistryTable({ rows }: { rows: Gaiola[] }) {
   return (
     <div className="scrollbar-thin max-h-[480px] overflow-auto rounded-xl border border-border/40">
       <table className="w-full text-sm">
@@ -319,3 +400,6 @@ function BufferTag({ buffer }: { buffer: string }) {
     </span>
   );
 }
+
+// Silence unused-var warnings if any
+void useState;

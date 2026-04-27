@@ -61,6 +61,11 @@ export function AppHeader() {
 
   return (
     <header className="glass sticky top-0 z-30 flex flex-wrap items-center gap-4 border-b border-border/40 px-5 py-4 backdrop-blur-xl">
+      {ctx.loading && ctx.rows.length > 0 && (
+        <div className="absolute inset-x-0 top-0 h-0.5 overflow-hidden">
+          <div className="h-full w-1/3 animate-[shimmer_1.2s_linear_infinite] bg-gradient-to-r from-transparent via-primary to-transparent" />
+        </div>
+      )}
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-border/60 bg-background/40">
           <Icon className="h-5 w-5 text-primary" />

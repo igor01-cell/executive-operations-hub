@@ -9,26 +9,36 @@ import {
 } from "@/components/ui/select";
 import type { BufferType, Gaiola } from "@/lib/dashboard/types";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { GaiolaDetailDialog } from "@/components/dashboard/GaiolaDetailDialog";
+import { motion } from "framer-motion";
+import { format } from "date-fns";
+import { usePersistedState } from "@/hooks/use-persisted-state";
 
 const BUFFERS: BufferType[] = ["RTS", "EHA", "SALVADOS"];
 
 export function MapScreen() {
   const { rows } = useDashboard();
-  const [buffer, setBuffer] = useState<BufferType>("RTS");
+  const [buffer, setBuffer] = usePersistedState<BufferType>(
+    "rts.map.buffer",
+    "RTS",
+  );
+  const [selected, setSelected] = useState<{
+    primary: Gaiola;
+    extras: Gaiola[];
+  } | null>(null);
 
   const bufferRows = useMemo(
     () => rows.filter((r) => r.buffer === buffer),
     [rows, buffer],
   );
 
-  // Index by (rua 1..10, pos 1..7). Mapping handled in parser.ts.
+  // Index by (rua 1..10, pos 1..7).
   const grid = useMemo(() => {
     const map = new Map<string, Gaiola[]>();
     bufferRows.forEach((r) => {
@@ -76,15 +86,25 @@ export function MapScreen() {
         </div>
       </div>
 
-      <div className="glass-elevated rounded-2xl p-5">
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="glass-elevated rounded-2xl p-5"
+      >
         <div className="mb-4 flex flex-wrap items-center gap-4 text-[11px]">
           <Legend color="bg-muted/40 border-border/60" label="Vazio" />
-          <Legend color="bg-success/30 border-success/60" label="Normal" />
-          <Legend color="bg-warning/40 border-warning/60" label="Atenção (>10d)" />
-          <Legend color="bg-destructive/40 border-destructive/60 animate-pulse" label="LOST (>14d)" />
+          <Legend color="bg-success/30 border-success/60" label="Normal (<10d)" />
+          <Legend color="bg-warning/40 border-warning/60" label="Atenção (10–13d)" />
+          <Legend
+            color="bg-destructive/40 border-destructive/60 animate-pulse"
+            label="LOST (≥14d)"
+          />
+          <span className="ml-auto text-muted-foreground">
+            Clique em uma célula para ver detalhes
+          </span>
         </div>
 
-        {/* Grid: 10 ruas, 7 posições each. Cinema-style. */}
         <TooltipProvider delayDuration={120}>
           <div className="scrollbar-thin overflow-x-auto pb-2">
             <div className="min-w-[820px] space-y-2">
@@ -100,7 +120,12 @@ export function MapScreen() {
                         const pos = pIdx + 1;
                         const items = grid.get(`${ruaNum}-${pos}`) ?? [];
                         return (
-                          <Cell key={pos} items={items} pos={pos} />
+                          <Cell
+                            key={pos}
+                            items={items}
+                            pos={pos}
+                            onSelect={(it, ex) => setSelected({ primary: it, extras: ex })}
+                          />
                         );
                       })}
                     </div>
@@ -110,14 +135,30 @@ export function MapScreen() {
             </div>
           </div>
         </TooltipProvider>
-      </div>
+      </motion.div>
+
+      <GaiolaDetailDialog
+        gaiola={selected?.primary ?? null}
+        extras={selected?.extras ?? []}
+        open={!!selected}
+        onOpenChange={(o) => !o && setSelected(null)}
+      />
     </div>
   );
 }
 
-function Cell({ items, pos }: { items: Gaiola[]; pos: number }) {
-  const item = items[0]; // primary
-  const extra = items.length - 1;
+function Cell({
+  items,
+  pos,
+  onSelect,
+}: {
+  items: Gaiola[];
+  pos: number;
+  onSelect: (item: Gaiola, extras: Gaiola[]) => void;
+}) {
+  const item = items[0];
+  const extras = items.slice(1);
+  const extra = extras.length;
 
   if (!item) {
     return (
@@ -136,10 +177,13 @@ function Cell({ items, pos }: { items: Gaiola[]; pos: number }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button
+        <motion.button
           type="button"
+          whileTap={{ scale: 0.95 }}
+          whileHover={{ scale: 1.04, y: -2 }}
+          onClick={() => onSelect(item, extras)}
           className={cn(
-            "group relative flex h-20 flex-col justify-between overflow-hidden rounded-lg border p-1.5 text-left transition-all hover:scale-[1.04] hover:ring-2",
+            "group relative flex h-20 flex-col justify-between overflow-hidden rounded-lg border p-1.5 text-left transition-colors hover:ring-2",
             tone,
             item.isLost && "animate-pulse",
           )}
@@ -171,7 +215,7 @@ function Cell({ items, pos }: { items: Gaiola[]; pos: number }) {
               +{extra}
             </span>
           )}
-        </button>
+        </motion.button>
       </TooltipTrigger>
       <TooltipContent className="glass-elevated max-w-xs border-border/60">
         <div className="space-y-1 text-xs">
@@ -197,11 +241,9 @@ function Cell({ items, pos }: { items: Gaiola[]; pos: number }) {
           <p className="text-muted-foreground">
             Aging: <span className="text-foreground">{item.agingDays.toFixed(1)}d</span>
           </p>
-          {extra > 0 && (
-            <p className="mt-1 italic text-muted-foreground">
-              + {extra} outras gaiolas nesta posição
-            </p>
-          )}
+          <p className="mt-1 text-[10px] italic text-primary">
+            Clique para ver detalhes completos
+          </p>
         </div>
       </TooltipContent>
     </Tooltip>

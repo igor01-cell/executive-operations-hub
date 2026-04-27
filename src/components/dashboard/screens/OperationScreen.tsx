@@ -120,6 +120,17 @@ export function OperationScreen() {
     .filter((r) => r.isLost)
     .reduce((s, r) => s + r.estimatedPackages, 0);
 
+  // Aging metrics — somente gaiolas com data válida entram no cálculo
+  const withAging = filtered.filter((r) => r.dataHora);
+  const avgAging =
+    withAging.length > 0
+      ? withAging.reduce((s, r) => s + r.agingDays, 0) / withAging.length
+      : 0;
+  const maxAging = withAging.reduce((m, r) => Math.max(m, r.agingDays), 0);
+  const atRiskCount = filtered.filter((r) => r.isAtRisk && !r.isLost).length;
+  const agingTone: "default" | "warning" | "danger" =
+    avgAging >= 14 ? "danger" : avgAging >= 10 ? "warning" : "default";
+
   const ehaCount = filtered.filter((r) => r.buffer === "EHA").length;
   const rtsCount = filtered.filter((r) => r.buffer === "RTS").length;
   const donutData = [

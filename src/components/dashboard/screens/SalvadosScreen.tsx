@@ -7,7 +7,6 @@ import {
   useFilters,
 } from "@/components/dashboard/FiltersBar";
 import { InsightsPanel } from "@/components/dashboard/InsightsPanel";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Area,
   AreaChart,
@@ -27,83 +26,56 @@ import {
   Hourglass,
   Package,
   Tag,
-  TrendingDown,
-  TrendingUp,
   Truck,
 } from "lucide-react";
 import {
   buildTimeline,
-  computeSalvadosMetrics,
+  computeReverseBufferMetrics,
 } from "@/lib/dashboard/insights";
-import { usePersistedState } from "@/hooks/use-persisted-state";
 import { motion } from "framer-motion";
-import type { Gaiola } from "@/lib/dashboard/types";
 
+/**
+ * Tela 2 — Buffer Reverso (Salvados / Off).
+ *
+ * Conceito: aqui NÃO se mede "risco de LOST" nem "novos LOST".
+ * Por definição, todo pacote nesta tela já é lost (aging > 14d) —
+ * é justamente por isso que foi categorizado como Off ou Salvado.
+ *
+ * O foco operacional aqui é:
+ *  • antiguidade DENTRO do buffer reverso (faixas 14–21, 21–30, 30–60, 60+)
+ *  • % sem identificação (bloqueio para leilão)
+ *  • taxa estimada de expedição para leilão
+ *  • pacote mais antigo (gargalo crônico)
+ */
 export function SalvadosScreen() {
   const { rows } = useDashboard();
-  const [tab, setTab] = usePersistedState<string>("rts.salvados.tab", "buffer");
 
-  // Aba 1: itens com buffer físico SALVADOS
-  const bufferRows = useMemo(
-    () => rows.filter((r) => r.buffer === "SALVADOS"),
+  // Inclui SALVADOS (físico) + Off com ID (ambos já são lost por definição)
+  const baseRows = useMemo(
+    () =>
+      rows.filter(
+        (r) => r.buffer === "SALVADOS" || r.categoria === "Off com ID",
+      ),
     [rows],
   );
-  // Aba 2: itens LOST (aging ≥ 14d) em qualquer buffer
-  const allLostRows = useMemo(() => rows.filter((r) => r.isLost), [rows]);
 
-  return (
-    <div className="space-y-5">
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="glass h-auto rounded-2xl p-1.5">
-          <TabsTrigger
-            value="buffer"
-            className="rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-wider data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-glow"
-          >
-            Buffer Salvados
-            <span className="ml-2 rounded-full bg-background/40 px-1.5 py-0.5 text-[10px] tabular-nums">
-              {bufferRows.length}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="all-lost"
-            className="rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-wider data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground"
-          >
-            Todos LOST (≥14d)
-            <span className="ml-2 rounded-full bg-background/40 px-1.5 py-0.5 text-[10px] tabular-nums">
-              {allLostRows.length}
-            </span>
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="buffer" className="mt-5 space-y-5">
-          <SalvadosBufferView rows={bufferRows} />
-        </TabsContent>
-
-        <TabsContent value="all-lost" className="mt-5 space-y-5">
-          <AllLostView rows={allLostRows} />
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-}
-
-/* ─────────────────────────── ABA 1: Buffer físico SALVADOS ─────────────────────────── */
-
-function SalvadosBufferView({ rows: baseRows }: { rows: Gaiola[] }) {
-  const { filters, setFilters, effective } = useFilters("rts.filters.salvados");
+  const { filters, setFilters, effective } = useFilters("rts.filters.reverse");
   const filtered = useMemo(
     () => applyFilters(baseRows, effective),
     [baseRows, effective],
   );
-  const metrics = useMemo(() => computeSalvadosMetrics(filtered), [filtered]);
+  const metrics = useMemo(
+    () => computeReverseBufferMetrics(filtered),
+    [filtered],
+  );
 
-  const semId = filtered.filter((r) => r.categoria === "Salvados sem ID").length;
-
-  // Distribuição por perfil
-  const perfilData = ["P", "M", "G"].map((p) => ({
-    perfil: p,
-    gaiolas: filtered.filter((r) => r.perfil === p).length,
-  }));
+  // Faixas de aging (gráfico)
+  const ageBucketsData = [
+    { faixa: "14–21d", value: metrics.ageBuckets.recent, fill: "var(--color-chart-3)" },
+    { faixa: "21–30d", value: metrics.ageBuckets.aged, fill: "var(--color-chart-4)" },
+    { faixa: "30–60d", value: metrics.ageBuckets.old, fill: "var(--color-warning)" },
+    { faixa: "60+d", value: metrics.ageBuckets.critical, fill: "var(--color-destructive)" },
+  ];
 
   // Distribuição por categoria
   const catMap = filtered.reduce<Record<string, number>>((acc, r) => {
@@ -124,40 +96,81 @@ function SalvadosBufferView({ rows: baseRows }: { rows: Gaiola[] }) {
 
   const timeline = useMemo(() => buildTimeline(filtered, 30), [filtered]);
 
+  // Tom dinâmico para a antiguidade
+  const oldestTone =
+    metrics.oldestDays >= 60
+      ? "danger"
+      : metrics.oldestDays >= 30
+        ? "warning"
+        : "default";
+
+  const semIdTone =
+    metrics.semIdPct > 30 ? "danger" : metrics.semId > 0 ? "warning" : "success";
+
   return (
-    <>
+    <div className="space-y-5">
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="glass rounded-2xl p-4 text-xs leading-relaxed text-muted-foreground"
+      >
+        <span className="font-semibold text-foreground">
+          Buffer Reverso (Salvados + Off com ID)
+        </span>
+        <br />
+        Todos os pacotes nesta tela já têm aging ≥ 14 dias — é exatamente por
+        isso que foram categorizados como Off ou Salvado. O conceito de
+        “risco de LOST” não se aplica aqui; o foco é{" "}
+        <span className="text-foreground">antiguidade no buffer</span>,{" "}
+        <span className="text-foreground">identificação</span> e{" "}
+        <span className="text-foreground">taxa de expedição para leilão</span>.
+      </motion.div>
+
+      {/* KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           index={0}
-          label="Total de salvados"
+          label="Total no buffer"
           value={metrics.total}
           icon={<Boxes className="h-5 w-5" />}
-          hint="Buffer reverso"
+          hint={`${metrics.totalPacotes.toLocaleString("pt-BR")} pacotes (estim.)`}
         />
         <KpiCard
           index={1}
-          label="Pacotes (estim.)"
-          value={metrics.totalPacotes.toLocaleString("pt-BR")}
-          icon={<Package className="h-5 w-5" />}
-          hint="Inventário para leilão"
-          tone="warning"
+          label="Aging médio"
+          value={`${metrics.avgAging.toFixed(1)}d`}
+          icon={<Hourglass className="h-5 w-5" />}
+          hint={`Mais antigo: ${metrics.oldestDays.toFixed(0)}d`}
+          tone={oldestTone}
         />
         <KpiCard
           index={2}
           label="Sem identificação"
-          value={semId}
+          value={metrics.semId}
           icon={<Tag className="h-5 w-5" />}
-          tone={semId > 0 ? "warning" : "success"}
-          hint="Requer catalogação manual"
+          tone={semIdTone}
+          hint={
+            metrics.semId > 0
+              ? `${metrics.semIdPct.toFixed(0)}% — bloqueio para leilão`
+              : "Tudo identificado"
+          }
         />
         <KpiCard
           index={3}
-          label="Aging médio"
-          value={`${metrics.total ? (filtered.reduce((s, r) => s + r.agingDays, 0) / metrics.total).toFixed(1) : "0.0"}d`}
-          icon={<Hourglass className="h-5 w-5" />}
-          hint={`Mais antigo: ${metrics.oldestDays.toFixed(0)}d`}
-          tone={metrics.oldestDays > 21 ? "danger" : metrics.oldestDays > 14 ? "warning" : "default"}
+          label="Taxa de expedição (estim.)"
+          value={`${metrics.estimatedExpeditionRate.toFixed(1)}/d`}
+          icon={<Truck className="h-5 w-5" />}
+          hint="Saída média estimada para leilão"
         />
+      </div>
+
+      {/* Faixas de aging em destaque */}
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <AgingBucket label="14–21 dias" value={metrics.ageBuckets.recent} tone="info" />
+        <AgingBucket label="21–30 dias" value={metrics.ageBuckets.aged} tone="default" />
+        <AgingBucket label="30–60 dias" value={metrics.ageBuckets.old} tone="warning" />
+        <AgingBucket label="60+ dias" value={metrics.ageBuckets.critical} tone="danger" />
       </div>
 
       <FiltersBar
@@ -168,14 +181,18 @@ function SalvadosBufferView({ rows: baseRows }: { rows: Gaiola[] }) {
       />
 
       <div className="grid gap-5 lg:grid-cols-3">
-        <ChartCard title="Distribuição por perfil">
+        <ChartCard title="Distribuição por antiguidade">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={perfilData}>
+            <BarChart data={ageBucketsData}>
               <CartesianGrid strokeDasharray="3 3" stroke="oklch(1 0 0 / 0.06)" />
-              <XAxis dataKey="perfil" stroke="oklch(0.7 0 0)" fontSize={11} />
+              <XAxis dataKey="faixa" stroke="oklch(0.7 0 0)" fontSize={11} />
               <YAxis stroke="oklch(0.7 0 0)" fontSize={11} />
               <Tooltip contentStyle={tooltipStyle} />
-              <Bar dataKey="gaiolas" fill="var(--color-chart-1)" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+                {ageBucketsData.map((d, i) => (
+                  <Cell key={i} fill={d.fill} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -202,7 +219,7 @@ function SalvadosBufferView({ rows: baseRows }: { rows: Gaiola[] }) {
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Evolução (últimos 30 dias)">
+        <ChartCard title="Entradas no buffer (últimos 30d)">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={timeline}>
               <defs>
@@ -227,145 +244,8 @@ function SalvadosBufferView({ rows: baseRows }: { rows: Gaiola[] }) {
         </ChartCard>
       </div>
 
-      <InsightsPanel rows={filtered} />
-    </>
-  );
-}
-
-/* ─────────────────────────── ABA 2: Todos LOST ─────────────────────────── */
-
-function AllLostView({ rows: baseRows }: { rows: Gaiola[] }) {
-  const { filters, setFilters, effective } = useFilters("rts.filters.all-lost");
-  const filtered = useMemo(
-    () => applyFilters(baseRows, effective),
-    [baseRows, effective],
-  );
-  const metrics = useMemo(() => computeSalvadosMetrics(filtered), [filtered]);
-
-  // Distribuição por buffer
-  const bufferData = ["RTS", "EHA", "SALVADOS"].map((b) => ({
-    name: b,
-    value: filtered.filter((r) => r.buffer === b).length,
-    fill:
-      b === "RTS"
-        ? "var(--color-chart-1)"
-        : b === "EHA"
-          ? "var(--color-chart-2)"
-          : "var(--color-chart-4)",
-  }));
-
-  const timeline = useMemo(() => buildTimeline(filtered, 30), [filtered]);
-
-  const growthLabel =
-    metrics.backlogGrowthPct === 0
-      ? "Estável"
-      : `${metrics.backlogGrowthPct > 0 ? "+" : ""}${metrics.backlogGrowthPct.toFixed(0)}%`;
-  const growthTone =
-    metrics.backlogGrowthPct > 20
-      ? "danger"
-      : metrics.backlogGrowthPct > 0
-        ? "warning"
-        : "success";
-
-  return (
-    <>
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        className="glass rounded-2xl p-4 text-xs text-muted-foreground"
-      >
-        <span className="font-semibold text-foreground">Definição:</span>{" "}
-        Salvados = todos os itens com aging ≥ 14 dias, em qualquer buffer (RTS, EHA ou SALVADOS).
-      </motion.div>
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard
-          index={0}
-          label="Total LOST"
-          value={metrics.total}
-          icon={<Boxes className="h-5 w-5" />}
-          hint={`${metrics.totalPacotes.toLocaleString("pt-BR")} pacotes`}
-          tone="danger"
-        />
-        <KpiCard
-          index={1}
-          label="Tempo médio em LOST"
-          value={`${metrics.avgAgingLost.toFixed(1)}d`}
-          icon={<Hourglass className="h-5 w-5" />}
-          hint={`Mais antigo: ${metrics.oldestDays.toFixed(0)}d`}
-          tone="warning"
-        />
-        <KpiCard
-          index={2}
-          label="Crescimento de backlog"
-          value={growthLabel}
-          icon={
-            metrics.backlogGrowthPct > 0 ? (
-              <TrendingUp className="h-5 w-5" />
-            ) : (
-              <TrendingDown className="h-5 w-5" />
-            )
-          }
-          hint={`Últimos 7d vs 7d anteriores`}
-          tone={growthTone}
-        />
-        <KpiCard
-          index={3}
-          label="Taxa de expedição (estim.)"
-          value={`${metrics.estimatedExpeditionRate.toFixed(1)}/d`}
-          icon={<Truck className="h-5 w-5" />}
-          hint="Baseado em entradas recentes"
-          tone="info"
-        />
-      </div>
-
-      <FiltersBar rows={baseRows} value={filters} onChange={setFilters} />
-
-      <div className="grid gap-5 lg:grid-cols-2">
-        <ChartCard title="Distribuição por buffer">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={bufferData} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="oklch(1 0 0 / 0.06)" />
-              <XAxis type="number" stroke="oklch(0.7 0 0)" fontSize={11} />
-              <YAxis type="category" dataKey="name" stroke="oklch(0.7 0 0)" fontSize={11} width={70} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Bar dataKey="value" radius={[0, 8, 8, 0]}>
-                {bufferData.map((d, i) => (
-                  <Cell key={i} fill={d.fill} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        <ChartCard title="Evolução temporal de entradas (30d)">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={timeline}>
-              <defs>
-                <linearGradient id="gradLost" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--color-destructive)" stopOpacity={0.6} />
-                  <stop offset="100%" stopColor="var(--color-destructive)" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="oklch(1 0 0 / 0.06)" />
-              <XAxis dataKey="date" stroke="oklch(0.7 0 0)" fontSize={10} interval={4} />
-              <YAxis stroke="oklch(0.7 0 0)" fontSize={11} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Area
-                type="monotone"
-                dataKey="value"
-                stroke="var(--color-destructive)"
-                strokeWidth={2}
-                fill="url(#gradLost)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </ChartCard>
-      </div>
-
-      <InsightsPanel rows={filtered} />
-    </>
+      <InsightsPanel rows={filtered} mode="reverse" />
+    </div>
   );
 }
 
@@ -378,7 +258,13 @@ const tooltipStyle: React.CSSProperties = {
   fontSize: 12,
 };
 
-function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+function ChartCard({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -388,6 +274,40 @@ function ChartCard({ title, children }: { title: string; children: React.ReactNo
     >
       <h3 className="mb-3 text-sm font-bold uppercase tracking-wider">{title}</h3>
       <div className="h-56">{children}</div>
+    </motion.div>
+  );
+}
+
+const TONE_STYLES = {
+  info: "border-accent-blue/40 text-accent-blue",
+  default: "border-border/40 text-foreground",
+  warning: "border-warning/40 text-warning",
+  danger: "border-destructive/50 text-destructive",
+} as const;
+
+function AgingBucket({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone: keyof typeof TONE_STYLES;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className={`glass rounded-2xl border p-4 ${TONE_STYLES[tone]}`}
+    >
+      <p className="text-[11px] font-semibold uppercase tracking-wider opacity-80">
+        {label}
+      </p>
+      <p className="mt-1 text-3xl font-black tabular-nums">{value}</p>
+      <p className="text-[10px] uppercase tracking-wider opacity-60">
+        gaiolas
+      </p>
     </motion.div>
   );
 }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Gaiola } from "@/lib/dashboard/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Filter, X } from "lucide-react";
+import { useDebounce } from "@/hooks/use-debounce";
+import { usePersistedState } from "@/hooks/use-persisted-state";
 
 export interface Filters {
   search: string;
@@ -31,10 +33,11 @@ export const initialFilters: Filters = {
   risk: "all",
 };
 
+/** Pure filter — accepts already-debounced search string */
 export function applyFilters(rows: Gaiola[], f: Filters): Gaiola[] {
+  const q = f.search.trim().toLowerCase();
   return rows.filter((r) => {
-    if (f.search) {
-      const q = f.search.toLowerCase();
+    if (q) {
       if (
         !r.codigo.toLowerCase().includes(q) &&
         !r.rua.toLowerCase().includes(q)
@@ -58,10 +61,49 @@ interface Props {
   value: Filters;
   onChange: (f: Filters) => void;
   hideBuffer?: boolean;
+  hideCategoria?: boolean;
 }
 
-export function FiltersBar({ rows, value, onChange, hideBuffer }: Props) {
+/**
+ * Reusable hook: keeps filter state in localStorage and exposes
+ * an "effective" filter object whose `search` is debounced.
+ * Always call FiltersBar with `value`/`onChange`, and call `applyFilters`
+ * on the *effective* filters returned from this hook to avoid re-running
+ * on every keystroke.
+ */
+export function useFilters(storageKey: string) {
+  const [filters, setFilters] = usePersistedState<Filters>(storageKey, initialFilters);
+  const debouncedSearch = useDebounce(filters.search, 200);
+  const effective = useMemo<Filters>(
+    () => ({ ...filters, search: debouncedSearch }),
+    [filters, debouncedSearch],
+  );
+  return { filters, setFilters, effective };
+}
+
+export function FiltersBar({
+  rows,
+  value,
+  onChange,
+  hideBuffer,
+  hideCategoria,
+}: Props) {
   const [open, setOpen] = useState(false);
+
+  // Local search state to avoid re-rendering the parent on every keystroke
+  const [localSearch, setLocalSearch] = useState(value.search);
+  useEffect(() => {
+    if (localSearch !== value.search) {
+      const id = setTimeout(() => onChange({ ...value, search: localSearch }), 180);
+      return () => clearTimeout(id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localSearch]);
+  // External resets (clear filters) sync back into local
+  useEffect(() => {
+    if (value.search !== localSearch && value.search === "") setLocalSearch("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value.search]);
 
   const opts = useMemo(() => {
     const uniq = (arr: string[]) =>
@@ -86,8 +128,8 @@ export function FiltersBar({ rows, value, onChange, hideBuffer }: Props) {
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[220px]">
           <Input
-            value={value.search}
-            onChange={(e) => setField("search", e.target.value)}
+            value={localSearch}
+            onChange={(e) => setLocalSearch(e.target.value)}
             placeholder="Buscar código ou rua..."
             className="bg-background/40 border-border/60 pl-3"
           />
@@ -106,11 +148,14 @@ export function FiltersBar({ rows, value, onChange, hideBuffer }: Props) {
             </span>
           )}
         </Button>
-        {activeCount > 0 && (
+        {(activeCount > 0 || localSearch) && (
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => onChange({ ...initialFilters, search: value.search })}
+            onClick={() => {
+              setLocalSearch("");
+              onChange(initialFilters);
+            }}
           >
             <X className="h-4 w-4" /> Limpar
           </Button>
@@ -127,12 +172,14 @@ export function FiltersBar({ rows, value, onChange, hideBuffer }: Props) {
               options={["RTS", "EHA", "SALVADOS"]}
             />
           )}
-          <SelectField
-            label="Categoria"
-            value={value.categoria}
-            onChange={(v) => setField("categoria", v)}
-            options={opts.categoria}
-          />
+          {!hideCategoria && (
+            <SelectField
+              label="Categoria"
+              value={value.categoria}
+              onChange={(v) => setField("categoria", v)}
+              options={opts.categoria}
+            />
+          )}
           <SelectField
             label="Perfil"
             value={value.perfil}

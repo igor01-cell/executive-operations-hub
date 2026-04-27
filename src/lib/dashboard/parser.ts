@@ -39,23 +39,34 @@ function parsePerfil(v: string | undefined): Perfil {
   return "—";
 }
 
-/** Parse "2026/02/23 22:13:57" or "23/02/2026 22:13" or ISO. */
+/** Parse "2026/02/23 22:13:57", "2026-02-23 22:13", "23/02/2026 22:13" or ISO. */
 function parseDateBR(v: string | undefined): Date | null {
   const s = normalize(v);
   if (!s) return null;
 
-  // ISO/already valid
-  const iso = new Date(s.replace(" ", "T"));
-  if (!Number.isNaN(iso.getTime()) && /\d{4}/.test(s.split(/[\/\-T ]/)[0] ?? "")) {
-    return iso;
+  // yyyy/mm/dd or yyyy-mm-dd [hh:mm[:ss]]  (Google Sheets default format)
+  const ymd = s.match(
+    /^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/
+  );
+  if (ymd) {
+    const [, yyyy, mm, dd, hh = "0", mi = "0", ss = "0"] = ymd;
+    const d = new Date(
+      Number(yyyy),
+      Number(mm) - 1,
+      Number(dd),
+      Number(hh),
+      Number(mi),
+      Number(ss),
+    );
+    return Number.isNaN(d.getTime()) ? null : d;
   }
 
-  // dd/mm/yyyy [hh:mm[:ss]]
-  const m = s.match(
+  // dd/mm/yyyy [hh:mm[:ss]]  (BR format)
+  const dmy = s.match(
     /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/
   );
-  if (m) {
-    const [, dd, mm, yyyy, hh = "0", mi = "0", ss = "0"] = m;
+  if (dmy) {
+    const [, dd, mm, yyyy, hh = "0", mi = "0", ss = "0"] = dmy;
     const year = yyyy.length === 2 ? 2000 + Number(yyyy) : Number(yyyy);
     const d = new Date(
       year,
@@ -68,7 +79,9 @@ function parseDateBR(v: string | undefined): Date | null {
     return Number.isNaN(d.getTime()) ? null : d;
   }
 
-  return null;
+  // Fallback: native Date parser (true ISO strings)
+  const iso = new Date(s);
+  return Number.isNaN(iso.getTime()) ? null : iso;
 }
 
 /** Extract trailing numeric portion of "RTS01" / "Ru10" / "eha23" / "1" / "15" */

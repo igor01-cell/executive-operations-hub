@@ -145,68 +145,173 @@ export function generateInsights(rows: Gaiola[]): Insight[] {
   return out;
 }
 
-/** KPIs avançados para a tela de Salvados / LOST. */
-export interface SalvadosMetrics {
+/**
+ * KPIs do buffer reverso (Salvados / Off).
+ *
+ * NOTA: Aqui NÃO usamos o conceito de "risco de LOST" nem "novos LOST".
+ * Por definição, todo pacote categorizado como Off ou Salvado já está
+ * lost (aging > 14d) — ele só chega nesse buffer porque virou lost.
+ * O que importa nessa tela é antiguidade DENTRO do buffer reverso,
+ * identificação e taxa de saída para leilão.
+ */
+export interface ReverseBufferMetrics {
   total: number;
   totalPacotes: number;
-  avgAgingLost: number;
+  /** Aging médio (dias). Todos já são ≥14d, então o piso real é 14. */
+  avgAging: number;
+  /** Gaiola mais antiga (dias). */
   oldestDays: number;
-  /** Gaiolas que entraram no LOST nos últimos 7 dias. */
-  newLostLast7d: number;
-  /** Gaiolas que entraram no LOST nos 7 dias anteriores aos últimos 7. */
-  prevLostLast7d: number;
-  /** Crescimento percentual entre os dois períodos (positivo = backlog crescendo). */
-  backlogGrowthPct: number;
-  /** Estimativa de taxa de expedição diária baseada na rotação observada. */
+  /** Faixas de antiguidade dentro do buffer reverso. */
+  ageBuckets: {
+    /** 14–21 dias */ recent: number;
+    /** 21–30 dias */ aged: number;
+    /** 30–60 dias */ old: number;
+    /** > 60 dias  */ critical: number;
+  };
+  /** Itens sem identificação (Salvados sem ID). */
+  semId: number;
+  /** % sem ID. */
+  semIdPct: number;
+  /** Estimativa de saída diária baseada nos últimos 7 dias de movimentação. */
   estimatedExpeditionRate: number;
 }
 
-export function computeSalvadosMetrics(
+export function computeReverseBufferMetrics(
   rows: Gaiola[],
   now: Date = new Date(),
-): SalvadosMetrics {
+): ReverseBufferMetrics {
+  void now;
   const total = rows.length;
   const totalPacotes = rows.reduce((s, r) => s + r.estimatedPackages, 0);
-  const lostRows = rows.filter((r) => r.isLost);
-  const avgAgingLost = lostRows.length
-    ? lostRows.reduce((s, r) => s + r.agingDays, 0) / lostRows.length
+  const avgAging = total
+    ? rows.reduce((s, r) => s + r.agingDays, 0) / total
     : 0;
   const oldestDays = rows.reduce((max, r) => Math.max(max, r.agingDays), 0);
 
-  // Crescimento de backlog: comparar quantos itens "entraram em LOST" em
-  // janelas de 7 dias. Como aging = (now - dataHora) e LOST = aging > 14d,
-  // um item entrou em LOST entre 14 e 21 dias atrás se aging ∈ (14, 21].
-  const newLostLast7d = rows.filter(
-    (r) => r.agingDays > 14 && r.agingDays <= 21,
-  ).length;
-  const prevLostLast7d = rows.filter(
-    (r) => r.agingDays > 21 && r.agingDays <= 28,
-  ).length;
-  const backlogGrowthPct = prevLostLast7d
-    ? ((newLostLast7d - prevLostLast7d) / prevLostLast7d) * 100
-    : newLostLast7d > 0
-      ? 100
-      : 0;
+  const ageBuckets = {
+    recent: rows.filter((r) => r.agingDays >= 14 && r.agingDays < 21).length,
+    aged: rows.filter((r) => r.agingDays >= 21 && r.agingDays < 30).length,
+    old: rows.filter((r) => r.agingDays >= 30 && r.agingDays < 60).length,
+    critical: rows.filter((r) => r.agingDays >= 60).length,
+  };
 
-  // Taxa estimada de expedição: itens com aging ≤ 7d como proxy de saída
-  // (entraram recentemente, ainda não viraram LOST). Por dia.
-  const recent = rows.filter((r) => r.agingDays <= 7).length;
-  const estimatedExpeditionRate = recent / 7;
+  const semId = rows.filter((r) => r.categoria === "Salvados sem ID").length;
+  const semIdPct = total ? (semId / total) * 100 : 0;
 
-  // Avoid unused-var warning
-  void now;
+  // Taxa de saída estimada: itens "novos" no buffer (aging entre 14 e 21d)
+  // representam quem chegou nos últimos 7 dias. Usamos como proxy de fluxo.
+  const recent7d = rows.filter(
+    (r) => r.agingDays >= 14 && r.agingDays < 21,
+  ).length;
+  const estimatedExpeditionRate = recent7d / 7;
 
   return {
     total,
     totalPacotes,
-    avgAgingLost,
+    avgAging,
     oldestDays,
-    newLostLast7d,
-    prevLostLast7d,
-    backlogGrowthPct,
+    ageBuckets,
+    semId,
+    semIdPct,
     estimatedExpeditionRate,
   };
 }
+
+/**
+ * Insights focados no buffer reverso (Salvados / Off).
+ * NÃO menciona "risco de LOST" nem "novos LOST" — todos os itens aqui
+ * já são lost por definição. O foco é antiguidade, identificação e
+ * gargalos de expedição para leilão.
+ */
+export function generateReverseInsights(rows: Gaiola[]): Insight[] {
+  const out: Insight[] = [];
+  if (rows.length === 0) {
+    out.push({
+      level: "info",
+      title: "Buffer reverso vazio",
+      description:
+        "Nenhum pacote no buffer reverso com os filtros atuais.",
+    });
+    return out;
+  }
+
+  const m = computeReverseBufferMetrics(rows);
+
+  // 1. Concentração crítica (>60d)
+  if (m.ageBuckets.critical > 0) {
+    out.push({
+      level: "danger",
+      title: `${m.ageBuckets.critical} pacote(s) há mais de 60 dias`,
+      description: `Antiguidade crítica no buffer reverso. Priorizar expedição imediata para leilão para liberar espaço físico.`,
+    });
+  }
+
+  // 2. Concentração 30–60d
+  if (m.ageBuckets.old > 0) {
+    out.push({
+      level: "warning",
+      title: `${m.ageBuckets.old} pacote(s) entre 30 e 60 dias`,
+      description: `Antiguidade elevada. Revisar ciclo de saída para evitar acúmulo crônico.`,
+    });
+  }
+
+  // 3. Identificação
+  if (m.semId > 0) {
+    out.push({
+      level: m.semIdPct > 30 ? "danger" : "warning",
+      title: `${m.semId} pacote(s) sem ID (${m.semIdPct.toFixed(0)}%)`,
+      description: `Itens sem identificação não podem seguir para leilão. Priorizar catalogação manual.`,
+    });
+  } else {
+    out.push({
+      level: "success",
+      title: "Buffer 100% identificado",
+      description: `Todos os ${m.total} pacotes possuem ID válido. Fluxo para leilão desbloqueado.`,
+    });
+  }
+
+  // 4. Aging médio
+  out.push({
+    level: m.avgAging > 30 ? "warning" : "info",
+    title: `Aging médio: ${m.avgAging.toFixed(1)} dias`,
+    description: `Pacote mais antigo está há ${m.oldestDays.toFixed(0)} dia(s) no buffer.`,
+  });
+
+  // 5. Taxa de saída
+  if (m.estimatedExpeditionRate < 1 && m.total > 5) {
+    out.push({
+      level: "warning",
+      title: "Baixa taxa de expedição",
+      description: `Estimativa de saída de apenas ${m.estimatedExpeditionRate.toFixed(1)} pacote(s)/dia. Revisar fluxo de leilão.`,
+    });
+  } else if (m.estimatedExpeditionRate >= 1) {
+    out.push({
+      level: "info",
+      title: `Saída estimada: ${m.estimatedExpeditionRate.toFixed(1)}/dia`,
+      description: `Baseado nos pacotes que entraram no buffer nos últimos 7 dias.`,
+    });
+  }
+
+  // 6. Hot spot por rua
+  const ruaCount: Record<string, number> = {};
+  rows.forEach((r) => {
+    if (r.rua && r.rua !== "—") ruaCount[r.rua] = (ruaCount[r.rua] ?? 0) + 1;
+  });
+  const topRua = Object.entries(ruaCount).sort((a, b) => b[1] - a[1])[0];
+  if (topRua && topRua[1] >= 3) {
+    out.push({
+      level: "info",
+      title: `Concentração na rua ${topRua[0]}`,
+      description: `${topRua[1]} pacotes alocados nessa rua.`,
+    });
+  }
+
+  return out;
+}
+
+/* Backwards-compat alias (legacy callers). */
+export const computeSalvadosMetrics = computeReverseBufferMetrics;
+export type SalvadosMetrics = ReverseBufferMetrics;
 
 /** Dados para gráfico de evolução temporal (entradas por dia). */
 export function buildTimeline(rows: Gaiola[], days = 30) {

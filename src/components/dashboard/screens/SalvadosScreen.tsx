@@ -7,6 +7,7 @@ import {
   useFilters,
 } from "@/components/dashboard/FiltersBar";
 import { InsightsPanel } from "@/components/dashboard/InsightsPanel";
+import { PerfilLegend } from "@/components/dashboard/PerfilLegend";
 import {
   Bar,
   BarChart,
@@ -142,11 +143,9 @@ export function SalvadosScreen() {
         <span className="font-semibold text-foreground">
           Buffer de Salvados — Análise de volume para montagem de lotes
         </span>
-        <br />
-        Classificação dos perfis por quantidade de produtos no gaylord:{" "}
-        <span className="text-foreground">P (Pequeno) → 150+ produtos</span> ·{" "}
-        <span className="text-foreground">M (Médio) → 31 a 149 produtos</span> ·{" "}
-        <span className="text-foreground">G (Grande) → 1 a 30 produtos</span>.
+        <div className="mt-2">
+          <PerfilLegend variant="compact" />
+        </div>
       </motion.div>
 
       {/* KPIs de volume */}

@@ -8,7 +8,6 @@ import {
   useFilters,
 } from "@/components/dashboard/FiltersBar";
 import { InsightsPanel } from "@/components/dashboard/InsightsPanel";
-import { PerfilLegend } from "@/components/dashboard/PerfilLegend";
 import { AlertBanner } from "@/components/dashboard/AlertBanner";
 import {
   CategoryPills,
@@ -139,7 +138,6 @@ export function OperationScreen() {
 
   return (
     <div className="space-y-5">
-      <PerfilLegend variant="compact" className="glass rounded-2xl px-4 py-3" />
       {/* alert bar */}
       <AnimatePresence>
         {lostGaiolas > 0 && (

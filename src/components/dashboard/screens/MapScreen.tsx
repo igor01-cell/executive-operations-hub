@@ -19,7 +19,6 @@ import { GaiolaDetailDialog } from "@/components/dashboard/GaiolaDetailDialog";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { usePersistedState } from "@/hooks/use-persisted-state";
-import { PerfilLegend } from "@/components/dashboard/PerfilLegend";
 
 const BUFFERS: BufferType[] = ["RTS", "EHA", "SALVADOS"];
 
@@ -84,9 +83,6 @@ export function MapScreen() {
           <Stat label="Posições ocupadas" value={`${totalOcupadas}/70`} tone="default" />
           <Stat label="Em risco" value={totalRisk} tone="warning" />
           <Stat label="LOST" value={totalLost} tone="danger" />
-        </div>
-        <div className="mt-4 border-t border-border/40 pt-3">
-          <PerfilLegend variant="compact" />
         </div>
       </div>
 

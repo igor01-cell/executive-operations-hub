@@ -7,7 +7,6 @@ import {
   useFilters,
 } from "@/components/dashboard/FiltersBar";
 import { InsightsPanel } from "@/components/dashboard/InsightsPanel";
-import { PerfilLegend } from "@/components/dashboard/PerfilLegend";
 import {
   Bar,
   BarChart,
@@ -143,9 +142,15 @@ export function SalvadosScreen() {
         <span className="font-semibold text-foreground">
           Buffer de Salvados — Análise de volume para montagem de lotes
         </span>
-        <div className="mt-2">
-          <PerfilLegend variant="compact" />
-        </div>
+        <br />
+        Todos os gaylords desta tela já têm aging ≥ 14 dias e foram classificados
+        como Salvados (com ou sem ID — <span className="text-foreground">ambos vendidos da mesma forma</span>).
+        O foco aqui é{" "}
+        <span className="text-foreground">volume comercial</span>: quantos
+        pacotes existem por gaylord, qual o{" "}
+        <span className="text-foreground">mix de perfis (P/M/G)</span> e como{" "}
+        <span className="text-foreground">organizar o picking para venda/leilão</span>.
+        Estimativa por perfil: P = {PERFIL_PACKAGES.P} pcs · M = {PERFIL_PACKAGES.M} pcs · G = {PERFIL_PACKAGES.G} pcs.
       </motion.div>
 
       {/* KPIs de volume */}

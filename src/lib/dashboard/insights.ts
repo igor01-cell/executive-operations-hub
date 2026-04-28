@@ -346,7 +346,7 @@ export function generateSalvadosLotInsights(rows: Gaiola[]): Insight[] {
     out.push({
       level: "success",
       title: `${lotesCheios} gaylord(s) de alto volume (perfil P)`,
-      description: `Cada um ~150+ pacotes. Recomendado vender como lote único — maior margem por gaylord.`,
+      description: `Cada um ~175 pacotes. Recomendado vender como lote único — maior margem por gaylord.`,
     });
   }
 

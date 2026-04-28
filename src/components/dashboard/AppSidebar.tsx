@@ -38,9 +38,9 @@ export function AppSidebar() {
         </div>
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">
-            Shopee
+            SPX
           </p>
-          <p className="text-sm font-bold leading-tight">RTS Command</p>
+          <p className="text-sm font-bold leading-tight">RTS Control</p>
         </div>
       </div>
 

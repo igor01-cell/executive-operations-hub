@@ -19,6 +19,7 @@ import { GaiolaDetailDialog } from "@/components/dashboard/GaiolaDetailDialog";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { usePersistedState } from "@/hooks/use-persisted-state";
+import { PerfilLegend } from "@/components/dashboard/PerfilLegend";
 
 const BUFFERS: BufferType[] = ["RTS", "EHA", "SALVADOS"];
 

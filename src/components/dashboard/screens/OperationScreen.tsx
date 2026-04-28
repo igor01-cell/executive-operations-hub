@@ -42,6 +42,11 @@ import { usePersistedState } from "@/hooks/use-persisted-state";
 /** Mutually exclusive operational categories — Tela 1 */
 const CATEGORY_DEFS: Omit<CategoryOption, "count">[] = [
   {
+    id: "rts-all",
+    label: "RTS",
+    match: (_cat, buf) => buf === "RTS",
+  },
+  {
     id: "eha-all",
     label: "EHA",
     match: (_cat, buf) => buf === "EHA",

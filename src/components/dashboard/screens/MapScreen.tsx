@@ -84,6 +84,9 @@ export function MapScreen() {
           <Stat label="Em risco" value={totalRisk} tone="warning" />
           <Stat label="LOST" value={totalLost} tone="danger" />
         </div>
+        <div className="mt-4 border-t border-border/40 pt-3">
+          <PerfilLegend variant="compact" />
+        </div>
       </div>
 
       <motion.div

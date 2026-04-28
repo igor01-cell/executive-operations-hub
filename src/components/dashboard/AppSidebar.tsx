@@ -34,13 +34,13 @@ export function AppSidebar() {
     <aside className="glass-elevated sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-border/60 lg:flex">
       <div className="flex items-center gap-3 border-b border-border/40 px-5 py-5">
         <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-glow shadow-glow">
-          <Package className="h-5 w-5 text-primary-foreground" />
+          <span className="text-[11px] font-black tracking-tighter text-primary-foreground">SPX</span>
         </div>
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">
-            Shopee
+            SPX
           </p>
-          <p className="text-sm font-bold leading-tight">RTS Command</p>
+          <p className="text-sm font-bold leading-tight">RTS Control</p>
         </div>
       </div>
 

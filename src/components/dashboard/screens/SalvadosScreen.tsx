@@ -8,12 +8,11 @@ import {
 } from "@/components/dashboard/FiltersBar";
 import { InsightsPanel } from "@/components/dashboard/InsightsPanel";
 import {
-  Area,
-  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
   Cell,
+  LabelList,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -23,34 +22,31 @@ import {
 } from "recharts";
 import {
   Boxes,
-  Hourglass,
+  Layers,
   Package,
+  PackageOpen,
   Tag,
-  Truck,
+  Warehouse,
 } from "lucide-react";
-import {
-  buildTimeline,
-  computeReverseBufferMetrics,
-} from "@/lib/dashboard/insights";
+import { PERFIL_PACKAGES, type Gaiola } from "@/lib/dashboard/types";
 import { motion } from "framer-motion";
 
 /**
- * Tela 2 — Buffer Reverso (Salvados / Off).
+ * Tela 2 — Buffer de Salvados (foco: VOLUME para venda em LOTES).
  *
- * Conceito: aqui NÃO se mede "risco de LOST" nem "novos LOST".
- * Por definição, todo pacote nesta tela já é lost (aging > 14d) —
- * é justamente por isso que foi categorizado como Off ou Salvado.
+ * Conceito: todos os pacotes aqui têm aging ≥ 14d (já são "salvados/off").
+ * Não se aplica risco de LOST. O foco é entender o VOLUME disponível
+ * para estruturar lotes de venda/leilão dos gaylords.
  *
- * O foco operacional aqui é:
- *  • antiguidade DENTRO do buffer reverso (faixas 14–21, 21–30, 30–60, 60+)
- *  • % sem identificação (bloqueio para leilão)
- *  • taxa estimada de expedição para leilão
- *  • pacote mais antigo (gargalo crônico)
+ * Eixos de análise:
+ *  • Volume total de pacotes & quantidade de gaylords
+ *  • Mix por perfil (P, M, G) → precificação do lote
+ *  • Distribuição por rua → planejamento de picking
+ *  • Top gaylords por volume → candidatos a lote único
  */
 export function SalvadosScreen() {
   const { rows } = useDashboard();
 
-  // Inclui SALVADOS (físico) + Off com ID (ambos já são lost por definição)
   const baseRows = useMemo(
     () =>
       rows.filter(
@@ -64,48 +60,69 @@ export function SalvadosScreen() {
     () => applyFilters(baseRows, effective),
     [baseRows, effective],
   );
-  const metrics = useMemo(
-    () => computeReverseBufferMetrics(filtered),
-    [filtered],
-  );
 
-  // Faixas de aging (gráfico)
-  const ageBucketsData = [
-    { faixa: "14–21d", value: metrics.ageBuckets.recent, fill: "var(--color-chart-3)" },
-    { faixa: "21–30d", value: metrics.ageBuckets.aged, fill: "var(--color-chart-4)" },
-    { faixa: "30–60d", value: metrics.ageBuckets.old, fill: "var(--color-warning)" },
-    { faixa: "60+d", value: metrics.ageBuckets.critical, fill: "var(--color-destructive)" },
-  ];
+  /* ──────────── métricas de volume ──────────── */
+  const totals = useMemo(() => {
+    const totalGaylords = filtered.length;
+    const totalPacotes = filtered.reduce((s, r) => s + r.estimatedPackages, 0);
+    const avgPorGaylord = totalGaylords ? totalPacotes / totalGaylords : 0;
 
-  // Distribuição por categoria
-  const catMap = filtered.reduce<Record<string, number>>((acc, r) => {
-    acc[r.categoria] = (acc[r.categoria] ?? 0) + 1;
-    return acc;
-  }, {});
-  const catData = Object.entries(catMap).map(([name, value], i) => ({
-    name,
-    value,
-    fill: [
-      "var(--color-chart-1)",
-      "var(--color-chart-3)",
-      "var(--color-chart-4)",
-      "var(--color-chart-5)",
-      "var(--color-chart-2)",
-    ][i % 5],
+    const perfilCount: Record<"P" | "M" | "G", number> = { P: 0, M: 0, G: 0 };
+    const perfilPacotes: Record<"P" | "M" | "G", number> = { P: 0, M: 0, G: 0 };
+    filtered.forEach((r) => {
+      if (r.perfil === "P" || r.perfil === "M" || r.perfil === "G") {
+        perfilCount[r.perfil]++;
+        perfilPacotes[r.perfil] += r.estimatedPackages;
+      }
+    });
+
+    const semId = filtered.filter((r) => r.categoria === "Salvados sem ID").length;
+    const lotesEstimados = Math.max(1, Math.ceil(totalPacotes / 500));
+
+    return {
+      totalGaylords,
+      totalPacotes,
+      avgPorGaylord,
+      perfilCount,
+      perfilPacotes,
+      semId,
+      lotesEstimados,
+    };
+  }, [filtered]);
+
+  /* ──────────── gráfico: pacotes por perfil ──────────── */
+  const perfilData = (["P", "M", "G"] as const).map((p) => ({
+    perfil: p,
+    gaylords: totals.perfilCount[p],
+    pacotes: totals.perfilPacotes[p],
+    fill:
+      p === "P"
+        ? "var(--color-primary)"
+        : p === "M"
+          ? "var(--color-accent-blue)"
+          : "var(--color-warning)",
   }));
 
-  const timeline = useMemo(() => buildTimeline(filtered, 30), [filtered]);
+  /* ──────────── gráfico: distribuição por rua ──────────── */
+  const ruaData = useMemo(() => {
+    const map: Record<string, { rua: string; gaylords: number; pacotes: number }> = {};
+    filtered.forEach((r) => {
+      const k = r.rua && r.rua !== "—" ? r.rua : "S/Rua";
+      if (!map[k]) map[k] = { rua: k, gaylords: 0, pacotes: 0 };
+      map[k].gaylords++;
+      map[k].pacotes += r.estimatedPackages;
+    });
+    return Object.values(map).sort((a, b) => b.pacotes - a.pacotes);
+  }, [filtered]);
 
-  // Tom dinâmico para a antiguidade
-  const oldestTone =
-    metrics.oldestDays >= 60
-      ? "danger"
-      : metrics.oldestDays >= 30
-        ? "warning"
-        : "default";
-
-  const semIdTone =
-    metrics.semIdPct > 30 ? "danger" : metrics.semId > 0 ? "warning" : "success";
+  /* ──────────── top gaylords por volume ──────────── */
+  const topGaylords = useMemo(
+    () =>
+      [...filtered]
+        .sort((a, b) => b.estimatedPackages - a.estimatedPackages)
+        .slice(0, 10),
+    [filtered],
+  );
 
   return (
     <div className="space-y-5">
@@ -116,61 +133,81 @@ export function SalvadosScreen() {
         className="glass rounded-2xl p-4 text-xs leading-relaxed text-muted-foreground"
       >
         <span className="font-semibold text-foreground">
-          Buffer Reverso (Salvados + Off com ID)
+          Buffer de Salvados — Análise de volume para montagem de lotes
         </span>
         <br />
-        Todos os pacotes nesta tela já têm aging ≥ 14 dias — é exatamente por
-        isso que foram categorizados como Off ou Salvado. O conceito de
-        “risco de LOST” não se aplica aqui; o foco é{" "}
-        <span className="text-foreground">antiguidade no buffer</span>,{" "}
-        <span className="text-foreground">identificação</span> e{" "}
-        <span className="text-foreground">taxa de expedição para leilão</span>.
+        Todos os gaylords desta tela já têm aging ≥ 14 dias e foram classificados
+        como Salvados. O foco aqui é{" "}
+        <span className="text-foreground">volume comercial</span>: quantos
+        pacotes existem por gaylord, qual o{" "}
+        <span className="text-foreground">mix de perfis (P/M/G)</span> e como{" "}
+        <span className="text-foreground">organizar lotes para venda/leilão</span>.
+        Estimativa por perfil: P ≈ {PERFIL_PACKAGES.P} pcs · M ≈{" "}
+        {PERFIL_PACKAGES.M} pcs · G ≈ {PERFIL_PACKAGES.G} pcs.
       </motion.div>
 
-      {/* KPIs */}
+      {/* KPIs de volume */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           index={0}
-          label="Total no buffer"
-          value={metrics.total}
-          icon={<Boxes className="h-5 w-5" />}
-          hint={`${metrics.totalPacotes.toLocaleString("pt-BR")} pacotes (estim.)`}
+          label="Total de pacotes"
+          value={totals.totalPacotes.toLocaleString("pt-BR")}
+          icon={<Package className="h-5 w-5" />}
+          hint="Volume total disponível para venda"
+          tone="info"
         />
         <KpiCard
           index={1}
-          label="Aging médio"
-          value={`${metrics.avgAging.toFixed(1)}d`}
-          icon={<Hourglass className="h-5 w-5" />}
-          hint={`Mais antigo: ${metrics.oldestDays.toFixed(0)}d`}
-          tone={oldestTone}
+          label="Gaylords no buffer"
+          value={totals.totalGaylords}
+          icon={<Boxes className="h-5 w-5" />}
+          hint={`Média de ${totals.avgPorGaylord.toFixed(0)} pcs/gaylord`}
         />
         <KpiCard
           index={2}
-          label="Sem identificação"
-          value={metrics.semId}
-          icon={<Tag className="h-5 w-5" />}
-          tone={semIdTone}
-          hint={
-            metrics.semId > 0
-              ? `${metrics.semIdPct.toFixed(0)}% — bloqueio para leilão`
-              : "Tudo identificado"
-          }
+          label="Lotes comerciais (~500 pcs)"
+          value={totals.lotesEstimados}
+          icon={<Layers className="h-5 w-5" />}
+          hint="Sugestão de estruturação para leilão"
+          tone="success"
         />
         <KpiCard
           index={3}
-          label="Taxa de expedição (estim.)"
-          value={`${metrics.estimatedExpeditionRate.toFixed(1)}/d`}
-          icon={<Truck className="h-5 w-5" />}
-          hint="Saída média estimada para leilão"
+          label="Sem identificação"
+          value={totals.semId}
+          icon={<Tag className="h-5 w-5" />}
+          tone={totals.semId > 0 ? "warning" : "success"}
+          hint={
+            totals.semId > 0
+              ? "Bloqueados para leilão"
+              : "100% liberado para venda"
+          }
         />
       </div>
 
-      {/* Faixas de aging em destaque */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <AgingBucket label="14–21 dias" value={metrics.ageBuckets.recent} tone="info" />
-        <AgingBucket label="21–30 dias" value={metrics.ageBuckets.aged} tone="default" />
-        <AgingBucket label="30–60 dias" value={metrics.ageBuckets.old} tone="warning" />
-        <AgingBucket label="60+ dias" value={metrics.ageBuckets.critical} tone="danger" />
+      {/* Cards de perfil — destaque */}
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+        <PerfilCard
+          perfil="P"
+          gaylords={totals.perfilCount.P}
+          pacotes={totals.perfilPacotes.P}
+          tone="primary"
+          hint={`~${PERFIL_PACKAGES.P} pcs/gaylord · ideal lote único`}
+        />
+        <PerfilCard
+          perfil="M"
+          gaylords={totals.perfilCount.M}
+          pacotes={totals.perfilPacotes.M}
+          tone="info"
+          hint={`~${PERFIL_PACKAGES.M} pcs/gaylord · lote padrão`}
+        />
+        <PerfilCard
+          perfil="G"
+          gaylords={totals.perfilCount.G}
+          pacotes={totals.perfilPacotes.G}
+          tone="warning"
+          hint={`~${PERFIL_PACKAGES.G} pcs/gaylord · consolidar`}
+        />
       </div>
 
       <FiltersBar
@@ -181,36 +218,45 @@ export function SalvadosScreen() {
       />
 
       <div className="grid gap-5 lg:grid-cols-3">
-        <ChartCard title="Distribuição por antiguidade">
+        {/* Pacotes por perfil */}
+        <ChartCard title="Pacotes por perfil (P / M / G)">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={ageBucketsData}>
+            <BarChart data={perfilData}>
               <CartesianGrid strokeDasharray="3 3" stroke="oklch(1 0 0 / 0.06)" />
-              <XAxis dataKey="faixa" stroke="oklch(0.7 0 0)" fontSize={11} />
+              <XAxis dataKey="perfil" stroke="oklch(0.7 0 0)" fontSize={12} />
               <YAxis stroke="oklch(0.7 0 0)" fontSize={11} />
               <Tooltip contentStyle={tooltipStyle} />
-              <Bar dataKey="value" radius={[8, 8, 0, 0]}>
-                {ageBucketsData.map((d, i) => (
+              <Bar dataKey="pacotes" radius={[8, 8, 0, 0]}>
+                {perfilData.map((d, i) => (
                   <Cell key={i} fill={d.fill} />
                 ))}
+                <LabelList
+                  dataKey="pacotes"
+                  position="top"
+                  fill="oklch(0.85 0 0)"
+                  fontSize={11}
+                />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Por categoria">
+        {/* Mix de gaylords (donut) */}
+        <ChartCard title="Mix de gaylords por perfil">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
-                data={catData}
+                data={perfilData}
                 innerRadius={48}
                 outerRadius={78}
                 paddingAngle={3}
-                dataKey="value"
+                dataKey="gaylords"
+                nameKey="perfil"
                 stroke="oklch(0.10 0 0)"
                 strokeWidth={2}
                 isAnimationActive={false}
               >
-                {catData.map((d, i) => (
+                {perfilData.map((d, i) => (
                   <Cell key={i} fill={d.fill} />
                 ))}
               </Pie>
@@ -219,32 +265,98 @@ export function SalvadosScreen() {
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Entradas no buffer (últimos 30d)">
+        {/* Distribuição por rua */}
+        <ChartCard title="Volume de pacotes por rua">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={timeline}>
-              <defs>
-                <linearGradient id="gradEvo" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--color-accent-blue)" stopOpacity={0.6} />
-                  <stop offset="100%" stopColor="var(--color-accent-blue)" stopOpacity={0} />
-                </linearGradient>
-              </defs>
+            <BarChart data={ruaData} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="oklch(1 0 0 / 0.06)" />
-              <XAxis dataKey="date" stroke="oklch(0.7 0 0)" fontSize={10} interval={4} />
-              <YAxis stroke="oklch(0.7 0 0)" fontSize={11} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Area
-                type="monotone"
-                dataKey="value"
-                stroke="var(--color-accent-blue)"
-                strokeWidth={2}
-                fill="url(#gradEvo)"
+              <XAxis type="number" stroke="oklch(0.7 0 0)" fontSize={11} />
+              <YAxis
+                type="category"
+                dataKey="rua"
+                stroke="oklch(0.7 0 0)"
+                fontSize={11}
+                width={60}
               />
-            </AreaChart>
+              <Tooltip contentStyle={tooltipStyle} />
+              <Bar
+                dataKey="pacotes"
+                fill="var(--color-primary)"
+                radius={[0, 8, 8, 0]}
+              />
+            </BarChart>
           </ResponsiveContainer>
         </ChartCard>
       </div>
 
-      <InsightsPanel rows={filtered} mode="reverse" />
+      {/* Top gaylords por volume — apoio a montagem de lote */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35 }}
+        className="glass rounded-2xl p-5"
+      >
+        <div className="mb-4 flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary-glow shadow-glow">
+            <PackageOpen className="h-4 w-4 text-primary-foreground" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold uppercase tracking-wider">
+              Top 10 gaylords por volume
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Candidatos a lote único de alto valor — comece a montagem por aqui
+            </p>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border/40 text-left text-xs uppercase tracking-wider text-muted-foreground">
+                <th className="pb-2 pr-3">#</th>
+                <th className="pb-2 pr-3">Código</th>
+                <th className="pb-2 pr-3">Rua</th>
+                <th className="pb-2 pr-3">Perfil</th>
+                <th className="pb-2 pr-3">Categoria</th>
+                <th className="pb-2 pr-3 text-right">Pacotes (estim.)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {topGaylords.map((g, i) => (
+                <tr
+                  key={g.id}
+                  className="border-b border-border/20 transition-colors hover:bg-background/30"
+                >
+                  <td className="py-2 pr-3 text-muted-foreground tabular-nums">
+                    {i + 1}
+                  </td>
+                  <td className="py-2 pr-3 font-mono text-xs">{g.codigo}</td>
+                  <td className="py-2 pr-3">{g.rua}</td>
+                  <td className="py-2 pr-3">
+                    <PerfilBadge perfil={g.perfil} />
+                  </td>
+                  <td className="py-2 pr-3 text-xs text-muted-foreground">
+                    {g.categoria}
+                  </td>
+                  <td className="py-2 pr-3 text-right font-bold tabular-nums text-primary">
+                    {g.estimatedPackages.toLocaleString("pt-BR")}
+                  </td>
+                </tr>
+              ))}
+              {topGaylords.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="py-6 text-center text-muted-foreground">
+                    Sem gaylords disponíveis com os filtros atuais.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </motion.div>
+
+      <InsightsPanel rows={filtered} mode="salvados-lot" />
     </div>
   );
 }
@@ -278,36 +390,66 @@ function ChartCard({
   );
 }
 
-const TONE_STYLES = {
+const PERFIL_TONE = {
+  primary: "border-primary/40 text-primary",
   info: "border-accent-blue/40 text-accent-blue",
-  default: "border-border/40 text-foreground",
   warning: "border-warning/40 text-warning",
-  danger: "border-destructive/50 text-destructive",
 } as const;
 
-function AgingBucket({
-  label,
-  value,
+function PerfilCard({
+  perfil,
+  gaylords,
+  pacotes,
   tone,
+  hint,
 }: {
-  label: string;
-  value: number;
-  tone: keyof typeof TONE_STYLES;
+  perfil: "P" | "M" | "G";
+  gaylords: number;
+  pacotes: number;
+  tone: keyof typeof PERFIL_TONE;
+  hint: string;
 }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className={`glass rounded-2xl border p-4 ${TONE_STYLES[tone]}`}
+      className={`glass rounded-2xl border p-5 ${PERFIL_TONE[tone]}`}
     >
-      <p className="text-[11px] font-semibold uppercase tracking-wider opacity-80">
-        {label}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Warehouse className="h-4 w-4" />
+          <span className="text-[11px] font-semibold uppercase tracking-wider opacity-80">
+            Perfil {perfil}
+          </span>
+        </div>
+        <span className="text-xs font-bold tabular-nums opacity-70">
+          {gaylords} gaylord{gaylords === 1 ? "" : "s"}
+        </span>
+      </div>
+      <p className="mt-2 text-3xl font-black tabular-nums text-foreground">
+        {pacotes.toLocaleString("pt-BR")}
       </p>
-      <p className="mt-1 text-3xl font-black tabular-nums">{value}</p>
       <p className="text-[10px] uppercase tracking-wider opacity-60">
-        gaiolas
+        pacotes (estim.)
       </p>
+      <p className="mt-2 text-[11px] leading-snug opacity-75">{hint}</p>
     </motion.div>
+  );
+}
+
+function PerfilBadge({ perfil }: { perfil: Gaiola["perfil"] }) {
+  const map = {
+    P: "bg-primary/15 text-primary border-primary/30",
+    M: "bg-accent-blue/15 text-accent-blue border-accent-blue/30",
+    G: "bg-warning/15 text-warning border-warning/30",
+    "—": "bg-muted/20 text-muted-foreground border-border/40",
+  } as const;
+  return (
+    <span
+      className={`inline-flex h-6 min-w-6 items-center justify-center rounded-md border px-2 text-xs font-bold ${map[perfil]}`}
+    >
+      {perfil}
+    </span>
   );
 }

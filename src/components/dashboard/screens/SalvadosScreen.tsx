@@ -144,13 +144,13 @@ export function SalvadosScreen() {
         </span>
         <br />
         Todos os gaylords desta tela já têm aging ≥ 14 dias e foram classificados
-        como Salvados. O foco aqui é{" "}
+        como Salvados (com ou sem ID — <span className="text-foreground">ambos vendidos da mesma forma</span>).
+        O foco aqui é{" "}
         <span className="text-foreground">volume comercial</span>: quantos
         pacotes existem por gaylord, qual o{" "}
         <span className="text-foreground">mix de perfis (P/M/G)</span> e como{" "}
-        <span className="text-foreground">organizar lotes para venda/leilão</span>.
-        Estimativa por perfil: P ≈ {PERFIL_PACKAGES.P} pcs · M ≈{" "}
-        {PERFIL_PACKAGES.M} pcs · G ≈ {PERFIL_PACKAGES.G} pcs.
+        <span className="text-foreground">organizar o picking para venda/leilão</span>.
+        Estimativa por perfil: P = {PERFIL_PACKAGES.P} pcs · M = {PERFIL_PACKAGES.M} pcs · G = {PERFIL_PACKAGES.G} pcs.
       </motion.div>
 
       {/* KPIs de volume */}

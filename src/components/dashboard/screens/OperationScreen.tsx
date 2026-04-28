@@ -138,6 +138,7 @@ export function OperationScreen() {
 
   return (
     <div className="space-y-5">
+      <PerfilLegend variant="compact" className="glass rounded-2xl px-4 py-3" />
       {/* alert bar */}
       <AnimatePresence>
         {lostGaiolas > 0 && (

@@ -292,17 +292,110 @@ export function generateReverseInsights(rows: Gaiola[]): Insight[] {
     });
   }
 
-  // 6. Hot spot por rua
-  const ruaCount: Record<string, number> = {};
-  rows.forEach((r) => {
-    if (r.rua && r.rua !== "—") ruaCount[r.rua] = (ruaCount[r.rua] ?? 0) + 1;
-  });
-  const topRua = Object.entries(ruaCount).sort((a, b) => b[1] - a[1])[0];
-  if (topRua && topRua[1] >= 3) {
+  return out;
+}
+
+/**
+ * Insights focados em VOLUME e MONTAGEM DE LOTES para venda/leilão.
+ * Substitui a lógica de risco por uma análise comercial dos gaylords.
+ */
+export function generateSalvadosLotInsights(rows: Gaiola[]): Insight[] {
+  const out: Insight[] = [];
+  if (rows.length === 0) {
     out.push({
       level: "info",
-      title: `Concentração na rua ${topRua[0]}`,
-      description: `${topRua[1]} pacotes alocados nessa rua.`,
+      title: "Sem gaylords no buffer",
+      description: "Nenhum gaylord disponível para montagem de lotes com os filtros atuais.",
+    });
+    return out;
+  }
+
+  const totalGaylords = rows.length;
+  const totalPacotes = rows.reduce((s, r) => s + r.estimatedPackages, 0);
+  const avgPorGaylord = totalPacotes / totalGaylords;
+
+  // 1. Volume total disponível para venda
+  out.push({
+    level: "success",
+    title: `${totalPacotes.toLocaleString("pt-BR")} pacotes disponíveis para lote`,
+    description: `Distribuídos em ${totalGaylords} gaylord(s), média de ${avgPorGaylord.toFixed(0)} pacotes por gaylord.`,
+  });
+
+  // 2. Mix de perfil (P/M/G) — crítico para precificação do lote
+  const perfilCount: Record<string, number> = { P: 0, M: 0, G: 0 };
+  const perfilPacotes: Record<string, number> = { P: 0, M: 0, G: 0 };
+  rows.forEach((r) => {
+    if (r.perfil in perfilCount) {
+      perfilCount[r.perfil]++;
+      perfilPacotes[r.perfil] += r.estimatedPackages;
+    }
+  });
+  const perfilTop = Object.entries(perfilCount).sort((a, b) => b[1] - a[1])[0];
+  if (perfilTop && perfilTop[1] > 0) {
+    const pct = Math.round((perfilTop[1] / totalGaylords) * 100);
+    out.push({
+      level: "info",
+      title: `Mix dominante: perfil ${perfilTop[0]} (${pct}%)`,
+      description: `P: ${perfilCount.P} gaylords (${perfilPacotes.P.toLocaleString("pt-BR")} pcs) · M: ${perfilCount.M} (${perfilPacotes.M.toLocaleString("pt-BR")} pcs) · G: ${perfilCount.G} (${perfilPacotes.G.toLocaleString("pt-BR")} pcs).`,
+    });
+  }
+
+  // 3. Lotes "cheios" prontos para venda (perfil P alto volume)
+  const lotesCheios = rows.filter((r) => r.perfil === "P").length;
+  if (lotesCheios >= 3) {
+    out.push({
+      level: "success",
+      title: `${lotesCheios} gaylord(s) de alto volume (perfil P)`,
+      description: `Cada um ~175 pacotes. Recomendado vender como lote único — maior margem por gaylord.`,
+    });
+  }
+
+  // 4. Gaylords pequenos — consolidar
+  const lotesPequenos = rows.filter((r) => r.perfil === "G").length;
+  if (lotesPequenos >= 2) {
+    const totalP = perfilPacotes.G;
+    out.push({
+      level: "warning",
+      title: `${lotesPequenos} gaylord(s) de baixo volume (perfil G)`,
+      description: `Somam apenas ~${totalP} pacotes. Considere consolidar em um lote misto para otimizar logística de venda.`,
+    });
+  }
+
+  // 5. Concentração por rua (planejamento de picking p/ leilão)
+  const ruaCount: Record<string, { gaylords: number; pacotes: number }> = {};
+  rows.forEach((r) => {
+    if (!r.rua || r.rua === "—") return;
+    if (!ruaCount[r.rua]) ruaCount[r.rua] = { gaylords: 0, pacotes: 0 };
+    ruaCount[r.rua].gaylords++;
+    ruaCount[r.rua].pacotes += r.estimatedPackages;
+  });
+  const topRua = Object.entries(ruaCount).sort((a, b) => b[1].pacotes - a[1].pacotes)[0];
+  if (topRua) {
+    out.push({
+      level: "info",
+      title: `Rua ${topRua[0]} concentra maior volume`,
+      description: `${topRua[1].gaylords} gaylord(s) e ~${topRua[1].pacotes.toLocaleString("pt-BR")} pacotes. Picking otimizado começando por essa rua.`,
+    });
+  }
+
+  // 6. Sugestão de lote consolidado
+  const sugestaoLote = Math.ceil(totalPacotes / 500); // ~500 pcs por lote comercial
+  if (totalPacotes >= 500) {
+    out.push({
+      level: "success",
+      title: `Sugestão: ${sugestaoLote} lote(s) comercial(is) de ~500 pacotes`,
+      description: `Volume atual permite estruturar ${sugestaoLote} lote(s) padrão para leilão, balanceando mix P/M/G.`,
+    });
+  }
+
+  // 7. Identificação (bloqueio para leilão)
+  const semId = rows.filter((r) => r.categoria === "Salvados sem ID").length;
+  if (semId > 0) {
+    const pct = (semId / totalGaylords) * 100;
+    out.push({
+      level: pct > 30 ? "danger" : "warning",
+      title: `${semId} gaylord(s) sem ID (${pct.toFixed(0)}%)`,
+      description: `Bloqueados para venda. Priorizar catalogação para liberar volume comercial.`,
     });
   }
 

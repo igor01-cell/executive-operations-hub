@@ -1,6 +1,7 @@
 import {
   generateInsights,
   generateReverseInsights,
+  generateSalvadosLotInsights,
 } from "@/lib/dashboard/insights";
 import type { Gaiola } from "@/lib/dashboard/types";
 import { useMemo } from "react";
@@ -23,23 +24,22 @@ const STYLE = {
 } as const;
 
 /**
- * mode="operation"  → insights de monitoramento (risco/lost/atRisk).
- * mode="reverse"    → insights do buffer reverso (sem conceito de risco).
+ * mode="operation"     → insights de monitoramento (risco/lost/atRisk).
+ * mode="reverse"       → insights do buffer reverso (sem conceito de risco).
+ * mode="salvados-lot"  → insights focados em volume e montagem de lotes.
  */
 export function InsightsPanel({
   rows,
   mode = "operation",
 }: {
   rows: Gaiola[];
-  mode?: "operation" | "reverse";
+  mode?: "operation" | "reverse" | "salvados-lot";
 }) {
-  const insights = useMemo(
-    () =>
-      mode === "reverse"
-        ? generateReverseInsights(rows)
-        : generateInsights(rows),
-    [rows, mode],
-  );
+  const insights = useMemo(() => {
+    if (mode === "salvados-lot") return generateSalvadosLotInsights(rows);
+    if (mode === "reverse") return generateReverseInsights(rows);
+    return generateInsights(rows);
+  }, [rows, mode]);
 
   return (
     <motion.div

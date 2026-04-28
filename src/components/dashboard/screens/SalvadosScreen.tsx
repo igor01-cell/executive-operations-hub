@@ -47,10 +47,15 @@ import { motion } from "framer-motion";
 export function SalvadosScreen() {
   const { rows } = useDashboard();
 
+  // Tela 2 trabalha EXCLUSIVAMENTE com as duas categorias de Salvados.
+  // Ambas são vendidas da mesma forma; a única diferença é a presença
+  // de etiqueta identificadora.
   const baseRows = useMemo(
     () =>
       rows.filter(
-        (r) => r.buffer === "SALVADOS" || r.categoria === "Off com ID",
+        (r) =>
+          r.categoria === "Salvados com ID" ||
+          r.categoria === "Salvados sem ID",
       ),
     [rows],
   );
@@ -77,7 +82,8 @@ export function SalvadosScreen() {
     });
 
     const semId = filtered.filter((r) => r.categoria === "Salvados sem ID").length;
-    const lotesEstimados = Math.max(1, Math.ceil(totalPacotes / 500));
+    const comId = filtered.filter((r) => r.categoria === "Salvados com ID").length;
+    const comIdPct = totalGaylords ? (comId / totalGaylords) * 100 : 0;
 
     return {
       totalGaylords,
@@ -86,7 +92,8 @@ export function SalvadosScreen() {
       perfilCount,
       perfilPacotes,
       semId,
-      lotesEstimados,
+      comId,
+      comIdPct,
     };
   }, [filtered]);
 
@@ -137,13 +144,13 @@ export function SalvadosScreen() {
         </span>
         <br />
         Todos os gaylords desta tela já têm aging ≥ 14 dias e foram classificados
-        como Salvados. O foco aqui é{" "}
+        como Salvados (com ou sem ID — <span className="text-foreground">ambos vendidos da mesma forma</span>).
+        O foco aqui é{" "}
         <span className="text-foreground">volume comercial</span>: quantos
         pacotes existem por gaylord, qual o{" "}
         <span className="text-foreground">mix de perfis (P/M/G)</span> e como{" "}
-        <span className="text-foreground">organizar lotes para venda/leilão</span>.
-        Estimativa por perfil: P ≈ {PERFIL_PACKAGES.P} pcs · M ≈{" "}
-        {PERFIL_PACKAGES.M} pcs · G ≈ {PERFIL_PACKAGES.G} pcs.
+        <span className="text-foreground">organizar o picking para venda/leilão</span>.
+        Estimativa por perfil: P = {PERFIL_PACKAGES.P} pcs · M = {PERFIL_PACKAGES.M} pcs · G = {PERFIL_PACKAGES.G} pcs.
       </motion.div>
 
       {/* KPIs de volume */}
@@ -165,23 +172,18 @@ export function SalvadosScreen() {
         />
         <KpiCard
           index={2}
-          label="Lotes comerciais (~500 pcs)"
-          value={totals.lotesEstimados}
-          icon={<Layers className="h-5 w-5" />}
-          hint="Sugestão de estruturação para leilão"
+          label="Com identificação"
+          value={totals.comId}
+          icon={<Tag className="h-5 w-5" />}
+          hint={`${totals.comIdPct.toFixed(0)}% do buffer possui etiqueta`}
           tone="success"
         />
         <KpiCard
           index={3}
           label="Sem identificação"
           value={totals.semId}
-          icon={<Tag className="h-5 w-5" />}
-          tone={totals.semId > 0 ? "warning" : "success"}
-          hint={
-            totals.semId > 0
-              ? "Bloqueados para leilão"
-              : "100% liberado para venda"
-          }
+          icon={<Layers className="h-5 w-5" />}
+          hint="Vendidos normalmente em lote, sem etiqueta"
         />
       </div>
 

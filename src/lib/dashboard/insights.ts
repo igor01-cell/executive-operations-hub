@@ -378,24 +378,15 @@ export function generateSalvadosLotInsights(rows: Gaiola[]): Insight[] {
     });
   }
 
-  // 6. Sugestão de lote consolidado
-  const sugestaoLote = Math.ceil(totalPacotes / 500); // ~500 pcs por lote comercial
-  if (totalPacotes >= 500) {
-    out.push({
-      level: "success",
-      title: `Sugestão: ${sugestaoLote} lote(s) comercial(is) de ~500 pacotes`,
-      description: `Volume atual permite estruturar ${sugestaoLote} lote(s) padrão para leilão, balanceando mix P/M/G.`,
-    });
-  }
-
-  // 7. Identificação (bloqueio para leilão)
+  // 6. Composição por identificação (informativo — ambos vendem igual)
   const semId = rows.filter((r) => r.categoria === "Salvados sem ID").length;
-  if (semId > 0) {
-    const pct = (semId / totalGaylords) * 100;
+  const comId = rows.filter((r) => r.categoria === "Salvados com ID").length;
+  if (totalGaylords > 0) {
+    const pctCom = (comId / totalGaylords) * 100;
     out.push({
-      level: pct > 30 ? "danger" : "warning",
-      title: `${semId} gaylord(s) sem ID (${pct.toFixed(0)}%)`,
-      description: `Bloqueados para venda. Priorizar catalogação para liberar volume comercial.`,
+      level: "info",
+      title: `Composição: ${comId} com ID · ${semId} sem ID`,
+      description: `${pctCom.toFixed(0)}% dos gaylords possuem etiqueta. Ambas as categorias seguem o mesmo fluxo de venda em lote — sem bloqueio comercial.`,
     });
   }
 

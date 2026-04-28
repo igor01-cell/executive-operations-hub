@@ -143,14 +143,10 @@ export function SalvadosScreen() {
           Buffer de Salvados — Análise de volume para montagem de lotes
         </span>
         <br />
-        Todos os gaylords desta tela já têm aging ≥ 14 dias e foram classificados
-        como Salvados (com ou sem ID — <span className="text-foreground">ambos vendidos da mesma forma</span>).
-        O foco aqui é{" "}
-        <span className="text-foreground">volume comercial</span>: quantos
-        pacotes existem por gaylord, qual o{" "}
-        <span className="text-foreground">mix de perfis (P/M/G)</span> e como{" "}
-        <span className="text-foreground">organizar o picking para venda/leilão</span>.
-        Estimativa por perfil: P = {PERFIL_PACKAGES.P} pcs · M = {PERFIL_PACKAGES.M} pcs · G = {PERFIL_PACKAGES.G} pcs.
+        Classificação dos perfis por quantidade de produtos no gaylord:{" "}
+        <span className="text-foreground">P (Pequeno) → 150+ produtos</span> ·{" "}
+        <span className="text-foreground">M (Médio) → 31 a 149 produtos</span> ·{" "}
+        <span className="text-foreground">G (Grande) → 1 a 30 produtos</span>.
       </motion.div>
 
       {/* KPIs de volume */}

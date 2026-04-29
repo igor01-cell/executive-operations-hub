@@ -92,13 +92,11 @@ export function MapScreen() {
         className="glass-elevated rounded-2xl p-5"
       >
         <div className="mb-4 flex flex-wrap items-center gap-4 text-[11px]">
-          <Legend color="bg-muted/40 border-border/60" label="Vazio" />
-          <Legend color="bg-success/30 border-success/60" label="Normal (<10d)" />
-          <Legend color="bg-warning/40 border-warning/60" label="Atenção (10–13d)" />
-          <Legend
-            color="bg-destructive/40 border-destructive/60 animate-pulse"
-            label="LOST (≥14d)"
-          />
+          <Legend className="bg-[oklch(0.66_0.22_32/0.18)] border-[oklch(0.66_0.22_32/0.6)]" label="RTS" />
+          <Legend className="bg-[oklch(0.65_0.20_245/0.18)] border-[oklch(0.65_0.20_245/0.6)]" label="EHA" />
+          <Legend className="bg-[oklch(0.70_0.17_155/0.18)] border-[oklch(0.70_0.17_155/0.6)]" label="SALVADOS" />
+          <Legend className="bg-destructive/30 border-destructive/70 animate-pulse" label="Alerta (>7d)" />
+          <Legend className="bg-muted/30 border-dashed border-border/40" label="Vazio" />
           <span className="ml-auto text-muted-foreground">
             Clique em uma célula para ver detalhes
           </span>

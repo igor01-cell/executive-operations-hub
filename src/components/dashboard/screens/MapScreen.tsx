@@ -55,8 +55,8 @@ export function MapScreen() {
   }, [bufferRows]);
 
   const totalOcupadas = grid.size;
-  const totalLost = bufferRows.filter((r) => r.isLost).length;
-  const totalRisk = bufferRows.filter((r) => r.isAtRisk && !r.isLost).length;
+  const totalAlert = bufferRows.filter((r) => r.agingDays > 7).length;
+  const occupancyPct = Math.round((totalOcupadas / 70) * 100);
 
   return (
     <div className="space-y-5">
@@ -80,9 +80,8 @@ export function MapScreen() {
               ))}
             </SelectContent>
           </Select>
-          <Stat label="Posições ocupadas" value={`${totalOcupadas}/70`} tone="default" />
-          <Stat label="Em risco" value={totalRisk} tone="warning" />
-          <Stat label="LOST" value={totalLost} tone="danger" />
+          <Stat label="Ocupação" value={`${totalOcupadas}/70`} sub={`${occupancyPct}%`} tone="default" />
+          <Stat label="Alertas (>7d)" value={totalAlert} tone="danger" />
         </div>
       </div>
 
@@ -93,13 +92,11 @@ export function MapScreen() {
         className="glass-elevated rounded-2xl p-5"
       >
         <div className="mb-4 flex flex-wrap items-center gap-4 text-[11px]">
-          <Legend color="bg-muted/40 border-border/60" label="Vazio" />
-          <Legend color="bg-success/30 border-success/60" label="Normal (<10d)" />
-          <Legend color="bg-warning/40 border-warning/60" label="Atenção (10–13d)" />
-          <Legend
-            color="bg-destructive/40 border-destructive/60 animate-pulse"
-            label="LOST (≥14d)"
-          />
+          <Legend className="bg-[oklch(0.66_0.22_32/0.18)] border-[oklch(0.66_0.22_32/0.6)]" label="RTS" />
+          <Legend className="bg-[oklch(0.65_0.20_245/0.18)] border-[oklch(0.65_0.20_245/0.6)]" label="EHA" />
+          <Legend className="bg-[oklch(0.70_0.17_155/0.18)] border-[oklch(0.70_0.17_155/0.6)]" label="SALVADOS" />
+          <Legend className="bg-destructive/30 border-destructive/70 animate-pulse" label="Alerta (>7d)" />
+          <Legend className="bg-muted/30 border-dashed border-border/40" label="Vazio" />
           <span className="ml-auto text-muted-foreground">
             Clique em uma célula para ver detalhes
           </span>
@@ -147,6 +144,17 @@ export function MapScreen() {
   );
 }
 
+// Buffer color tokens — RTS=orange (primary), EHA=blue, SALVADOS=green.
+// Aging > 7 dias sobrescreve com vermelho de alerta.
+const BUFFER_TONES: Record<BufferType, string> = {
+  RTS: "border-[oklch(0.66_0.22_32/0.7)] bg-[oklch(0.66_0.22_32/0.18)] hover:ring-[oklch(0.66_0.22_32/0.5)]",
+  EHA: "border-[oklch(0.65_0.20_245/0.7)] bg-[oklch(0.65_0.20_245/0.18)] hover:ring-[oklch(0.65_0.20_245/0.5)]",
+  SALVADOS:
+    "border-[oklch(0.70_0.17_155/0.7)] bg-[oklch(0.70_0.17_155/0.18)] hover:ring-[oklch(0.70_0.17_155/0.5)]",
+};
+
+const ALERT_THRESHOLD_DAYS = 7;
+
 function Cell({
   items,
   pos,
@@ -162,17 +170,17 @@ function Cell({
 
   if (!item) {
     return (
-      <div className="flex h-20 items-center justify-center rounded-lg border border-dashed border-border/30 bg-background/20 text-[10px] text-muted-foreground/50">
+      <div className="flex h-24 items-center justify-center rounded-lg border border-dashed border-border/30 bg-background/20 text-[10px] text-muted-foreground/50">
         {pos.toString().padStart(2, "0")}
       </div>
     );
   }
 
-  const tone = item.isLost
-    ? "border-destructive/60 bg-destructive/15 ring-destructive/40"
-    : item.isAtRisk
-      ? "border-warning/60 bg-warning/15 ring-warning/40"
-      : "border-success/40 bg-success/10 ring-success/30";
+  // Alerta sobrescreve a cor do buffer
+  const isAlert = item.agingDays > ALERT_THRESHOLD_DAYS;
+  const tone = isAlert
+    ? "border-destructive/70 bg-destructive/25 hover:ring-destructive/60 text-destructive-foreground"
+    : BUFFER_TONES[item.buffer];
 
   return (
     <Tooltip>
@@ -183,35 +191,45 @@ function Cell({
           whileHover={{ scale: 1.04, y: -2 }}
           onClick={() => onSelect(item, extras)}
           className={cn(
-            "group relative flex h-20 flex-col justify-between overflow-hidden rounded-lg border p-1.5 text-left transition-colors hover:ring-2",
+            "group relative flex h-24 flex-col justify-between overflow-hidden rounded-lg border-2 p-2 text-left transition-colors hover:ring-2",
             tone,
-            item.isLost && "animate-pulse",
+            isAlert && "animate-pulse-glow",
           )}
         >
+          {/* Top: CÓDIGO em destaque + PERFIL como badge */}
           <div className="flex items-start justify-between gap-1">
-            <span className="truncate font-mono text-[10px] font-bold leading-tight">
+            <span className="truncate font-mono text-[13px] font-extrabold leading-none tracking-tight">
               {item.codigo}
             </span>
-            <span className="rounded border border-border/60 bg-background/40 px-1 py-0 font-mono text-[9px] leading-tight">
+            <span
+              className={cn(
+                "shrink-0 rounded-md px-1.5 py-0.5 font-mono text-[11px] font-black leading-none",
+                isAlert
+                  ? "bg-background/80 text-destructive"
+                  : "bg-background/60 text-foreground ring-1 ring-border/60",
+              )}
+            >
               {item.perfil}
             </span>
           </div>
+
+          {/* Bottom: CATEGORIA destacada + aging */}
           <div className="flex items-end justify-between gap-1">
-            <span className="truncate text-[8px] uppercase leading-tight text-muted-foreground">
+            <span className="truncate text-[10px] font-bold uppercase leading-tight tracking-wide">
               {item.categoria}
             </span>
             <span
               className={cn(
-                "shrink-0 font-mono text-[9px] tabular-nums",
-                item.isLost && "font-bold text-destructive",
-                item.isAtRisk && !item.isLost && "font-semibold text-warning",
+                "shrink-0 font-mono text-[11px] font-bold tabular-nums",
+                isAlert && "text-destructive",
               )}
             >
-              {item.dataHora ? `${item.agingDays.toFixed(0)}d` : ""}
+              {item.dataHora ? `${item.agingDays.toFixed(0)}d` : "—"}
             </span>
           </div>
+
           {extra > 0 && (
-            <span className="absolute right-1 top-1 rounded-full bg-primary px-1 text-[8px] font-bold text-primary-foreground">
+            <span className="absolute right-1.5 top-1.5 rounded-full bg-foreground px-1.5 text-[9px] font-black text-background">
               +{extra}
             </span>
           )}
@@ -220,6 +238,9 @@ function Cell({
       <TooltipContent className="glass-elevated max-w-xs border-border/60">
         <div className="space-y-1 text-xs">
           <p className="font-mono font-bold">{item.codigo}</p>
+          <p className="text-muted-foreground">
+            Buffer: <span className="text-foreground">{item.buffer}</span>
+          </p>
           <p className="text-muted-foreground">
             Rua: <span className="font-mono text-foreground">{item.rua}</span>
           </p>
@@ -239,8 +260,16 @@ function Cell({
             </span>
           </p>
           <p className="text-muted-foreground">
-            Aging: <span className="text-foreground">{item.agingDays.toFixed(1)}d</span>
+            Aging:{" "}
+            <span className={cn("text-foreground", isAlert && "font-bold text-destructive")}>
+              {item.agingDays.toFixed(1)}d
+            </span>
           </p>
+          {isAlert && (
+            <p className="mt-1 text-[10px] font-bold uppercase text-destructive">
+              ⚠ Alerta — aging acima de {ALERT_THRESHOLD_DAYS} dias
+            </p>
+          )}
           <p className="mt-1 text-[10px] italic text-primary">
             Clique para ver detalhes completos
           </p>
@@ -250,10 +279,10 @@ function Cell({
   );
 }
 
-function Legend({ color, label }: { color: string; label: string }) {
+function Legend({ className, label }: { className: string; label: string }) {
   return (
     <span className="flex items-center gap-1.5 text-muted-foreground">
-      <span className={cn("h-3 w-3 rounded border", color)} />
+      <span className={cn("h-3 w-3 rounded border", className)} />
       {label}
     </span>
   );
@@ -262,10 +291,12 @@ function Legend({ color, label }: { color: string; label: string }) {
 function Stat({
   label,
   value,
+  sub,
   tone,
 }: {
   label: string;
   value: string | number;
+  sub?: string;
   tone: "default" | "warning" | "danger";
 }) {
   return (
@@ -278,7 +309,10 @@ function Stat({
       )}
     >
       <p className="text-[10px] uppercase tracking-wider opacity-80">{label}</p>
-      <p className="text-lg font-bold tabular-nums">{value}</p>
+      <p className="text-lg font-bold tabular-nums">
+        {value}
+        {sub && <span className="ml-1 text-xs font-medium opacity-70">({sub})</span>}
+      </p>
     </div>
   );
 }

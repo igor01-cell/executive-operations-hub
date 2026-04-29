@@ -55,8 +55,8 @@ export function MapScreen() {
   }, [bufferRows]);
 
   const totalOcupadas = grid.size;
-  const totalLost = bufferRows.filter((r) => r.isLost).length;
-  const totalRisk = bufferRows.filter((r) => r.isAtRisk && !r.isLost).length;
+  const totalAlert = bufferRows.filter((r) => r.agingDays > 7).length;
+  const occupancyPct = Math.round((totalOcupadas / 70) * 100);
 
   return (
     <div className="space-y-5">

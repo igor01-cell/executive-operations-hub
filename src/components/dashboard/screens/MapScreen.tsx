@@ -80,9 +80,8 @@ export function MapScreen() {
               ))}
             </SelectContent>
           </Select>
-          <Stat label="Posições ocupadas" value={`${totalOcupadas}/70`} tone="default" />
-          <Stat label="Em risco" value={totalRisk} tone="warning" />
-          <Stat label="LOST" value={totalLost} tone="danger" />
+          <Stat label="Ocupação" value={`${totalOcupadas}/70`} sub={`${occupancyPct}%`} tone="default" />
+          <Stat label="Alertas (>7d)" value={totalAlert} tone="danger" />
         </div>
       </div>
 

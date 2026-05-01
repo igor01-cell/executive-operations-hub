@@ -8,7 +8,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
       <AppSidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <AppHeader />
-        <main className="scrollbar-thin flex-1 space-y-5 p-4 md:p-6">
+        <main className="scrollbar-thin min-w-0 flex-1 space-y-4 p-3 sm:p-4 md:space-y-5 md:p-6">
           {children}
         </main>
       </div>

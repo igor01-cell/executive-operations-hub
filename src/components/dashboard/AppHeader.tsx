@@ -60,36 +60,40 @@ export function AppHeader() {
   const [tempUrl, setTempUrl] = useState(ctx.sheetUrl);
 
   return (
-    <header className="glass sticky top-0 z-30 flex flex-wrap items-center gap-4 border-b border-border/40 px-5 py-4 backdrop-blur-xl">
+    <header className="glass sticky top-0 z-30 flex flex-wrap items-center gap-2 border-b border-border/40 px-3 py-3 backdrop-blur-xl sm:gap-3 sm:px-5 sm:py-4">
       {ctx.loading && ctx.rows.length > 0 && (
         <div className="absolute inset-x-0 top-0 h-0.5 overflow-hidden">
           <div className="h-full w-1/3 animate-[shimmer_1.2s_linear_infinite] bg-gradient-to-r from-transparent via-primary to-transparent" />
         </div>
       )}
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-border/60 bg-background/40">
+      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-background/40 sm:h-11 sm:w-11">
           <Icon className="h-5 w-5 text-primary" />
         </div>
         <div className="min-w-0">
-          <h1 className="truncate text-lg font-bold tracking-tight md:text-xl">
+          <h1 className="truncate text-sm font-bold tracking-tight sm:text-lg md:text-xl">
             {meta.title}
           </h1>
-          <p className="truncate text-xs text-muted-foreground">{meta.sub}</p>
+          <p className="truncate text-[10px] text-muted-foreground sm:text-xs">{meta.sub}</p>
         </div>
       </div>
 
       {/* mobile nav */}
-      <div className="flex items-center gap-2 lg:hidden">
+      <div className="order-3 flex w-full items-center gap-2 lg:order-none lg:hidden lg:w-auto">
         <MobileNav />
+        <StatusPill ctx={ctx} />
       </div>
 
-      <div className="flex items-center gap-2">
-        <StatusPill ctx={ctx} />
+      <div className="flex shrink-0 items-center gap-2">
+        <div className="hidden lg:block">
+          <StatusPill ctx={ctx} />
+        </div>
         <Button
           variant="outline"
           size="sm"
           onClick={() => ctx.refresh()}
           disabled={ctx.loading}
+          aria-label="Atualizar"
           className="border-border/60 bg-background/40"
         >
           {ctx.loading ? (
@@ -97,7 +101,7 @@ export function AppHeader() {
           ) : (
             <RefreshCw className="h-4 w-4" />
           )}
-          Atualizar
+          <span className="hidden sm:inline">Atualizar</span>
         </Button>
 
         <Sheet open={open} onOpenChange={setOpen}>
@@ -177,7 +181,7 @@ function StatusPill({ ctx }: { ctx: ReturnType<typeof useDashboard> }) {
   return (
     <div
       className={cn(
-        "hidden items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-medium md:flex",
+        "ml-auto flex items-center gap-1.5 rounded-full border px-2 py-1 text-[10px] font-medium sm:gap-2 sm:px-3 sm:py-1.5 sm:text-[11px]",
         error
           ? "border-destructive/50 bg-destructive/10 text-destructive"
           : "border-success/40 bg-success/10 text-success",

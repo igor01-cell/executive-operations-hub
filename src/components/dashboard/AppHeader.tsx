@@ -4,8 +4,10 @@ import {
   Boxes,
   LayoutGrid,
   Loader2,
+  Moon,
   RefreshCw,
   Settings,
+  Sun,
   Wifi,
   WifiOff,
 } from "lucide-react";

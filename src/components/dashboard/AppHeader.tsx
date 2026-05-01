@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { setRefreshSec, setSheetUrl } from "@/lib/dashboard/store";
+import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";

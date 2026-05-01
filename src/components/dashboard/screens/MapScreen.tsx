@@ -60,16 +60,16 @@ export function MapScreen() {
 
   return (
     <div className="space-y-5">
-      <div className="glass rounded-2xl p-5">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex-1 min-w-[200px]">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <div className="glass rounded-2xl p-3 sm:p-5">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+          <div className="flex-1 min-w-[160px]">
+            <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Buffer
             </p>
-            <h3 className="text-xl font-bold">Mapa físico · 10 ruas × 7 posições</h3>
+            <h3 className="text-base sm:text-xl font-bold">Mapa físico · 10×7</h3>
           </div>
           <Select value={buffer} onValueChange={(v) => setBuffer(v as BufferType)}>
-            <SelectTrigger className="w-44 bg-background/40 border-border/60">
+            <SelectTrigger className="w-32 sm:w-44 bg-background/40 border-border/60">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="glass-elevated">
@@ -89,7 +89,7 @@ export function MapScreen() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="glass-elevated rounded-2xl p-5"
+        className="glass-elevated rounded-2xl p-3 sm:p-5"
       >
         <div className="mb-4 flex flex-wrap items-center gap-4 text-[11px]">
           <Legend className="bg-[oklch(0.66_0.22_32/0.18)] border-[oklch(0.66_0.22_32/0.6)]" label="RTS" />

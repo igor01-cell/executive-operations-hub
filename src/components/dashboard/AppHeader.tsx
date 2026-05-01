@@ -107,6 +107,8 @@ export function AppHeader() {
           <span className="hidden sm:inline">Atualizar</span>
         </Button>
 
+        <ThemeToggle />
+
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
             <Button

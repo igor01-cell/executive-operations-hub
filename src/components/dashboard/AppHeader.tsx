@@ -4,8 +4,10 @@ import {
   Boxes,
   LayoutGrid,
   Loader2,
+  Moon,
   RefreshCw,
   Settings,
+  Sun,
   Wifi,
   WifiOff,
 } from "lucide-react";
@@ -29,6 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { setRefreshSec, setSheetUrl } from "@/lib/dashboard/store";
+import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -104,6 +107,8 @@ export function AppHeader() {
           <span className="hidden sm:inline">Atualizar</span>
         </Button>
 
+        <ThemeToggle />
+
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
             <Button
@@ -173,6 +178,23 @@ export function AppHeader() {
         </Sheet>
       </div>
     </header>
+  );
+}
+
+function ThemeToggle() {
+  const { theme, toggle } = useTheme();
+  const isDark = theme === "dark";
+  return (
+    <Button
+      variant="outline"
+      size="icon"
+      onClick={toggle}
+      aria-label={isDark ? "Ativar modo claro" : "Ativar modo escuro"}
+      title={isDark ? "Modo claro" : "Modo escuro"}
+      className="border-border/60 bg-background/40"
+    >
+      {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+    </Button>
   );
 }
 

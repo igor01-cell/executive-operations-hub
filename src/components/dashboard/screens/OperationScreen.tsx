@@ -59,7 +59,7 @@ const CATEGORY_DEFS: Omit<CategoryOption, "count">[] = [
   {
     id: "off-sem-id",
     label: "Off sem ID",
-    match: (cat) => cat === "Salvados sem ID" || cat === "Outros",
+    match: (cat) => cat === "Off sem ID",
   },
   {
     id: "avaria",

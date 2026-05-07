@@ -62,9 +62,14 @@ const CATEGORY_DEFS: Omit<CategoryOption, "count">[] = [
     match: (cat) => cat === "Salvados sem ID" || cat === "Outros",
   },
   {
-    id: "online",
-    label: "Online (RTS)",
-    match: (cat, buf) => buf === "RTS" && cat === "Online",
+    id: "avaria",
+    label: "Avaria",
+    match: (cat) => cat === "Avaria",
+  },
+  {
+    id: "tratativas",
+    label: "Tratativas",
+    match: (cat) => cat === "Tratativas",
   },
 ];
 

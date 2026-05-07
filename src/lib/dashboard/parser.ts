@@ -29,7 +29,7 @@ function parseCategoria(v: string | undefined): Categoria {
   if (u.includes("TRATATIV")) return "Tratativas";
   if (u.includes("SALVAD") && u.includes("SEM")) return "Salvados sem ID";
   if (u.includes("SALVAD")) return "Salvados com ID";
-  if (u.includes("OFF") && u.includes("SEM")) return "Salvados sem ID";
+  if (u.includes("OFF") && u.includes("SEM")) return "Off sem ID";
   if (u.includes("OFF") && u.includes("ID")) return "Off com ID";
   return "Outros";
 }

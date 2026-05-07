@@ -2,6 +2,7 @@ export type BufferType = "RTS" | "EHA" | "SALVADOS";
 export type Perfil = "P" | "M" | "G" | "—";
 export type Categoria =
   | "Off com ID"
+  | "Off sem ID"
   | "Avaria"
   | "Tratativas"
   | "Salvados com ID"

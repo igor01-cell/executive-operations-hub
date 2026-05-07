@@ -25,12 +25,12 @@ function parseBuffer(v: string | undefined): BufferType {
 function parseCategoria(v: string | undefined): Categoria {
   const u = upper(v);
   if (!u) return "Outros";
-  if (u.includes("ONLINE")) return "Online";
+  if (u.includes("AVARIA")) return "Avaria";
+  if (u.includes("TRATATIV")) return "Tratativas";
   if (u.includes("SALVAD") && u.includes("SEM")) return "Salvados sem ID";
   if (u.includes("SALVAD")) return "Salvados com ID";
   if (u.includes("OFF") && u.includes("SEM")) return "Salvados sem ID";
   if (u.includes("OFF") && u.includes("ID")) return "Off com ID";
-  if (u === "EHA" || u.startsWith("EHA")) return "EHA";
   return "Outros";
 }
 

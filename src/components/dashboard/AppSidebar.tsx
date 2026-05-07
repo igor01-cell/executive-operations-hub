@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Activity, Boxes, ChevronLeft, LayoutGrid } from "lucide-react";
+import { Activity, Boxes, ChevronLeft, LayoutGrid, TrendingUp } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +24,13 @@ const ITEMS = [
     sub: "Buffer 10×7",
     icon: LayoutGrid,
     accent: "from-info/40 to-info/0",
+  },
+  {
+    to: "/produtividade" as const,
+    label: "Produtividade",
+    sub: "Diária · 2ª aba",
+    icon: TrendingUp,
+    accent: "from-success/40 to-success/0",
   },
 ];
 

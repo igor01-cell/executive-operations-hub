@@ -10,12 +10,18 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SalvadosRouteImport } from './routes/salvados'
+import { Route as ProdutividadeRouteImport } from './routes/produtividade'
 import { Route as MapaRouteImport } from './routes/mapa'
 import { Route as IndexRouteImport } from './routes/index'
 
 const SalvadosRoute = SalvadosRouteImport.update({
   id: '/salvados',
   path: '/salvados',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProdutividadeRoute = ProdutividadeRouteImport.update({
+  id: '/produtividade',
+  path: '/produtividade',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MapaRoute = MapaRouteImport.update({
@@ -32,30 +38,34 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/mapa': typeof MapaRoute
+  '/produtividade': typeof ProdutividadeRoute
   '/salvados': typeof SalvadosRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/mapa': typeof MapaRoute
+  '/produtividade': typeof ProdutividadeRoute
   '/salvados': typeof SalvadosRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/mapa': typeof MapaRoute
+  '/produtividade': typeof ProdutividadeRoute
   '/salvados': typeof SalvadosRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/mapa' | '/salvados'
+  fullPaths: '/' | '/mapa' | '/produtividade' | '/salvados'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/mapa' | '/salvados'
-  id: '__root__' | '/' | '/mapa' | '/salvados'
+  to: '/' | '/mapa' | '/produtividade' | '/salvados'
+  id: '__root__' | '/' | '/mapa' | '/produtividade' | '/salvados'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   MapaRoute: typeof MapaRoute
+  ProdutividadeRoute: typeof ProdutividadeRoute
   SalvadosRoute: typeof SalvadosRoute
 }
 
@@ -66,6 +76,13 @@ declare module '@tanstack/react-router' {
       path: '/salvados'
       fullPath: '/salvados'
       preLoaderRoute: typeof SalvadosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/produtividade': {
+      id: '/produtividade'
+      path: '/produtividade'
+      fullPath: '/produtividade'
+      preLoaderRoute: typeof ProdutividadeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mapa': {
@@ -88,6 +105,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   MapaRoute: MapaRoute,
+  ProdutividadeRoute: ProdutividadeRoute,
   SalvadosRoute: SalvadosRoute,
 }
 export const routeTree = rootRouteImport

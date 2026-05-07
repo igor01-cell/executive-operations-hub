@@ -8,6 +8,7 @@ import {
   RefreshCw,
   Settings,
   Sun,
+  TrendingUp,
   Wifi,
   WifiOff,
 } from "lucide-react";
@@ -51,6 +52,11 @@ const TITLES: Record<string, { title: string; sub: string; icon: typeof Activity
     title: "Mapa Visual do Buffer",
     sub: "Layout físico 10 ruas × 7 posições",
     icon: LayoutGrid,
+  },
+  "/produtividade": {
+    title: "Produtividade Diária",
+    sub: "Histórico da 2ª aba — volume, turnos e tendência",
+    icon: TrendingUp,
   },
 };
 
@@ -225,6 +231,7 @@ function MobileNav() {
     { to: "/" as const, label: "Operação", icon: Activity },
     { to: "/salvados" as const, label: "Salvados", icon: Boxes },
     { to: "/mapa" as const, label: "Mapa", icon: LayoutGrid },
+    { to: "/produtividade" as const, label: "Produtividade", icon: TrendingUp },
   ];
   return (
     <div className="flex gap-1 rounded-xl border border-border/40 bg-background/30 p-1">

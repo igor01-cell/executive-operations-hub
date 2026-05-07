@@ -165,23 +165,39 @@ export function parseCsv(csv: string, now: Date = new Date()): Gaiola[] {
  *  - https://docs.google.com/spreadsheets/d/e/{KEY}/pub
  *  - direct CSV URLs (returned unchanged)
  */
+/**
+ * Force the URL to point at the FIRST sheet/tab only (gid=0).
+ * All dashboard calculations use only the first tab of the spreadsheet.
+ */
+function forceFirstTab(rawUrl: string): string {
+  try {
+    const u = new URL(rawUrl);
+    u.searchParams.set("gid", "0");
+    u.searchParams.set("single", "true");
+    return u.toString();
+  } catch {
+    const sep = rawUrl.includes("?") ? "&" : "?";
+    return `${rawUrl}${sep}gid=0&single=true`;
+  }
+}
+
 export function toCsvUrl(input: string): string {
   const url = input.trim();
   if (!url) return url;
-  if (url.includes("output=csv")) return url;
+  if (url.includes("output=csv")) return forceFirstTab(url);
   // /pubhtml -> /pub?output=csv ; /pub -> /pub?output=csv
   const replaced = url.replace(/\/pubhtml(\?.*)?$/, "/pub?output=csv");
-  if (replaced !== url) return replaced;
-  if (url.endsWith("/pub")) return `${url}?output=csv`;
+  if (replaced !== url) return forceFirstTab(replaced);
+  if (url.endsWith("/pub")) return forceFirstTab(`${url}?output=csv`);
   if (url.includes("/pub?")) {
     const u = new URL(url);
     u.searchParams.set("output", "csv");
-    return u.toString();
+    return forceFirstTab(u.toString());
   }
-  // Standard share URL -> export endpoint
+  // Standard share URL -> export endpoint (gid=0 = first tab)
   const m = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
   if (m) {
-    return `https://docs.google.com/spreadsheets/d/${m[1]}/export?format=csv`;
+    return `https://docs.google.com/spreadsheets/d/${m[1]}/export?format=csv&gid=0`;
   }
   return url;
 }

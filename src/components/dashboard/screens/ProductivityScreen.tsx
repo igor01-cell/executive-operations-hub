@@ -239,7 +239,7 @@ export function ProductivityScreen() {
                   borderRadius: 12,
                   fontSize: 12,
                 }}
-                labelFormatter={fmtDateShort}
+                labelFormatter={(l) => fmtDateShort(String(l))}
               />
               <Bar dataKey="T1" stackId="a" fill={TURNO_COLORS.T1} radius={[0, 0, 0, 0]} />
               <Bar dataKey="T2" stackId="a" fill={TURNO_COLORS.T2} />
@@ -285,7 +285,7 @@ export function ProductivityScreen() {
                     borderRadius: 12,
                     fontSize: 12,
                   }}
-                  labelFormatter={fmtDateShort}
+                  labelFormatter={(l) => fmtDateShort(String(l))}
                 />
                 <Line
                   type="monotone"

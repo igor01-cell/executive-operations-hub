@@ -384,10 +384,10 @@ function ChartCard({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35 }}
-      className="glass rounded-2xl p-5"
+      className="glass min-w-0 rounded-2xl p-3 sm:p-5"
     >
       <h3 className="mb-3 text-sm font-bold uppercase tracking-wider">{title}</h3>
-      <div className="h-56">{children}</div>
+      <div className="h-56 w-full">{children}</div>
     </motion.div>
   );
 }

@@ -221,8 +221,8 @@ export function ProductivityScreen() {
             Empilhado (T1 / T2 / T3)
           </span>
         </header>
-        <div className="h-72">
-          <ResponsiveContainer>
+        <div className="h-64 w-full sm:h-72">
+          <ResponsiveContainer width="100%" height="100%">
             <BarChart data={dailyData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.3} />
               <XAxis

@@ -267,8 +267,8 @@ export function ProductivityScreen() {
               Diário + média móvel 7d
             </span>
           </header>
-          <div className="h-64">
-            <ResponsiveContainer>
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
               <LineChart data={trendData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.3} />
                 <XAxis

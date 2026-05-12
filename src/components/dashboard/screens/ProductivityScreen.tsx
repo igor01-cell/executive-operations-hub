@@ -221,8 +221,8 @@ export function ProductivityScreen() {
             Empilhado (T1 / T2 / T3)
           </span>
         </header>
-        <div className="h-72">
-          <ResponsiveContainer>
+        <div className="h-64 w-full sm:h-72">
+          <ResponsiveContainer width="100%" height="100%">
             <BarChart data={dailyData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.3} />
               <XAxis
@@ -256,7 +256,7 @@ export function ProductivityScreen() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, delay: 0.05 }}
-          className="glass rounded-2xl p-4 sm:p-5 lg:col-span-2"
+          className="glass min-w-0 rounded-2xl p-3 sm:p-5 lg:col-span-2"
         >
           <header className="mb-3 flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-success" />
@@ -267,8 +267,8 @@ export function ProductivityScreen() {
               Diário + média móvel 7d
             </span>
           </header>
-          <div className="h-64">
-            <ResponsiveContainer>
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
               <LineChart data={trendData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.3} />
                 <XAxis
@@ -314,7 +314,7 @@ export function ProductivityScreen() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, delay: 0.1 }}
-          className="glass rounded-2xl p-4 sm:p-5"
+          className="glass min-w-0 rounded-2xl p-3 sm:p-5"
         >
           <header className="mb-3 flex items-center gap-2">
             <Users className="h-4 w-4 text-accent-blue" />
@@ -322,8 +322,8 @@ export function ProductivityScreen() {
               Por turno
             </h2>
           </header>
-          <div className="h-64">
-            <ResponsiveContainer>
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart data={turnoData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.3} />
                 <XAxis dataKey="turno" stroke="var(--color-muted-foreground)" fontSize={11} />

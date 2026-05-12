@@ -256,7 +256,7 @@ export function ProductivityScreen() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, delay: 0.05 }}
-          className="glass rounded-2xl p-4 sm:p-5 lg:col-span-2"
+          className="glass min-w-0 rounded-2xl p-3 sm:p-5 lg:col-span-2"
         >
           <header className="mb-3 flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-success" />

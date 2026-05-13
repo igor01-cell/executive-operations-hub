@@ -139,9 +139,27 @@ export function OperationScreen() {
 
   const ehaCount = filtered.filter((r) => r.buffer === "EHA").length;
   const rtsCount = filtered.filter((r) => r.buffer === "RTS").length;
+
+  // Capacidade física do buffer operacional: EHA (10x7) + RTS (10x7) = 140 vagas
+  const BUFFER_CAPACITY = 140;
+  // Ocupação real (independe dos filtros do usuário) — vagas únicas ocupadas em EHA+RTS
+  const occupiedSlots = useMemo(() => {
+    const set = new Set<string>();
+    opRows.forEach((r) => {
+      if (r.ruaNum == null) return;
+      const idx = ((r.ruaNum - 1) % 70 + 70) % 70;
+      set.add(`${r.buffer}-${idx}`);
+    });
+    return set.size;
+  }, [opRows]);
+  const freeSlots = Math.max(0, BUFFER_CAPACITY - occupiedSlots);
+  const occupancyPct = Math.round((occupiedSlots / BUFFER_CAPACITY) * 100);
+  const occupancyTone: "default" | "warning" | "danger" =
+    occupancyPct >= 90 ? "danger" : occupancyPct >= 75 ? "warning" : "default";
+
   const donutData = [
-    { name: "EHA", value: ehaCount, fill: "var(--color-chart-2)" },
-    { name: "RTS", value: rtsCount, fill: "var(--color-chart-1)" },
+    { name: "Ocupado", value: occupiedSlots, fill: "var(--color-chart-1)" },
+    { name: "Livre", value: freeSlots, fill: "var(--color-chart-2)" },
   ];
 
   const showSkeleton = loading && rows.length === 0;

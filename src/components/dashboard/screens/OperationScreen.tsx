@@ -26,6 +26,7 @@ import {
   Container,
   Package,
   ShieldAlert,
+  Warehouse,
 } from "lucide-react";
 import {
   Cell,
@@ -138,9 +139,27 @@ export function OperationScreen() {
 
   const ehaCount = filtered.filter((r) => r.buffer === "EHA").length;
   const rtsCount = filtered.filter((r) => r.buffer === "RTS").length;
+
+  // Capacidade física do buffer operacional: EHA (10x7) + RTS (10x7) = 140 vagas
+  const BUFFER_CAPACITY = 140;
+  // Ocupação real (independe dos filtros do usuário) — vagas únicas ocupadas em EHA+RTS
+  const occupiedSlots = useMemo(() => {
+    const set = new Set<string>();
+    opRows.forEach((r) => {
+      if (r.ruaNum == null) return;
+      const idx = ((r.ruaNum - 1) % 70 + 70) % 70;
+      set.add(`${r.buffer}-${idx}`);
+    });
+    return set.size;
+  }, [opRows]);
+  const freeSlots = Math.max(0, BUFFER_CAPACITY - occupiedSlots);
+  const occupancyPct = Math.round((occupiedSlots / BUFFER_CAPACITY) * 100);
+  const occupancyTone: "default" | "warning" | "danger" =
+    occupancyPct >= 90 ? "danger" : occupancyPct >= 75 ? "warning" : "default";
+
   const donutData = [
-    { name: "EHA", value: ehaCount, fill: "var(--color-chart-2)" },
-    { name: "RTS", value: rtsCount, fill: "var(--color-chart-1)" },
+    { name: "Ocupado", value: occupiedSlots, fill: "var(--color-chart-1)" },
+    { name: "Livre", value: freeSlots, fill: "var(--color-chart-2)" },
   ];
 
   const showSkeleton = loading && rows.length === 0;
@@ -164,9 +183,10 @@ export function OperationScreen() {
         )}
       </AnimatePresence>
 
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 sm:gap-4">
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 sm:gap-4">
         {showSkeleton ? (
           <>
+            <KpiSkeleton />
             <KpiSkeleton />
             <KpiSkeleton />
             <KpiSkeleton />
@@ -177,13 +197,21 @@ export function OperationScreen() {
           <>
             <KpiCard
               index={0}
-              label="Total de pacotes"
+              label="Backlog Total"
               value={totalPacotes.toLocaleString("pt-BR")}
               hint="Estimativa por perfil"
               icon={<Package className="h-5 w-5" />}
             />
             <KpiCard
               index={1}
+              label="Stage In"
+              value={`${occupiedSlots}/${BUFFER_CAPACITY}`}
+              hint={`${occupancyPct}% ocupado · ${freeSlots} livres`}
+              tone={occupancyTone}
+              icon={<Warehouse className="h-5 w-5" />}
+            />
+            <KpiCard
+              index={2}
               label="Total de gaiolas"
               value={totalGaiolas.toLocaleString("pt-BR")}
               hint={`${ehaCount} EHA · ${rtsCount} RTS`}
@@ -191,7 +219,7 @@ export function OperationScreen() {
               tone="info"
             />
             <KpiCard
-              index={2}
+              index={3}
               label="Aging médio"
               value={
                 withAging.length > 0 ? `${avgAging.toFixed(1)}d` : "—"
@@ -205,7 +233,7 @@ export function OperationScreen() {
               icon={<Clock className="h-5 w-5" />}
             />
             <KpiCard
-              index={3}
+              index={4}
               label="Pacotes em risco LOST"
               value={lostPacotes.toLocaleString("pt-BR")}
               hint=">14 dias na operação"
@@ -213,7 +241,7 @@ export function OperationScreen() {
               icon={<Box className="h-5 w-5" />}
             />
             <KpiCard
-              index={4}
+              index={5}
               label="Gaiolas em risco"
               value={lostGaiolas.toLocaleString("pt-BR")}
               hint="Status LOST"
@@ -264,9 +292,14 @@ export function OperationScreen() {
           transition={{ duration: 0.35, delay: 0.1 }}
           className="glass rounded-2xl p-5"
         >
-          <h3 className="mb-3 text-sm font-bold uppercase tracking-wider">
-            Ocupação do buffer
-          </h3>
+          <div className="mb-3 flex items-baseline justify-between gap-2">
+            <h3 className="text-sm font-bold uppercase tracking-wider">
+              Ocupação do buffer
+            </h3>
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+              Cap. {BUFFER_CAPACITY}
+            </span>
+          </div>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -298,16 +331,16 @@ export function OperationScreen() {
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <LegendItem
-              color="var(--color-chart-2)"
-              label="EHA"
-              value={ehaCount}
-              total={ehaCount + rtsCount || 1}
+              color="var(--color-chart-1)"
+              label="Ocupado"
+              value={occupiedSlots}
+              total={BUFFER_CAPACITY}
             />
             <LegendItem
-              color="var(--color-chart-1)"
-              label="RTS"
-              value={rtsCount}
-              total={ehaCount + rtsCount || 1}
+              color="var(--color-chart-2)"
+              label="Livre"
+              value={freeSlots}
+              total={BUFFER_CAPACITY}
             />
           </div>
         </motion.div>

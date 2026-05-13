@@ -355,6 +355,8 @@ export function OperationScreen() {
               total={Math.max(1, ehaCount + rtsCount)}
             />
           </div>
+        </motion.div>
+      </div>
 
       <InsightsPanel rows={filtered} />
     </div>

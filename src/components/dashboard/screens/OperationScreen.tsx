@@ -26,6 +26,7 @@ import {
   Container,
   Package,
   ShieldAlert,
+  Warehouse,
 } from "lucide-react";
 import {
   Cell,

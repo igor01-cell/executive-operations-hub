@@ -309,7 +309,7 @@ export function OperationScreen() {
               Ocupação do buffer
             </h3>
             <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
-              Cap. {BUFFER_CAPACITY}
+              EHA vs RTS
             </span>
           </div>
           <div className="h-56">
@@ -343,20 +343,18 @@ export function OperationScreen() {
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <LegendItem
-              color="var(--color-chart-1)"
-              label="Ocupado"
-              value={occupiedSlots}
-              total={BUFFER_CAPACITY}
+              color="var(--color-chart-2)"
+              label="EHA"
+              value={ehaCount}
+              total={Math.max(1, ehaCount + rtsCount)}
             />
             <LegendItem
-              color="var(--color-chart-2)"
-              label="Livre"
-              value={freeSlots}
-              total={BUFFER_CAPACITY}
+              color="var(--color-primary)"
+              label="RTS"
+              value={rtsCount}
+              total={Math.max(1, ehaCount + rtsCount)}
             />
           </div>
-        </motion.div>
-      </div>
 
       <InsightsPanel rows={filtered} />
     </div>

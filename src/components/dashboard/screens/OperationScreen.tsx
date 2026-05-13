@@ -140,22 +140,32 @@ export function OperationScreen() {
   const ehaCount = filtered.filter((r) => r.buffer === "EHA").length;
   const rtsCount = filtered.filter((r) => r.buffer === "RTS").length;
 
-  // Capacidade física do buffer operacional: EHA (10x7) + RTS (10x7) = 140 vagas
-  const BUFFER_CAPACITY = 140;
-  // Ocupação real (independe dos filtros do usuário) — vagas únicas ocupadas em EHA+RTS
-  const occupiedSlots = useMemo(() => {
-    const set = new Set<string>();
+  // Capacidade física por buffer: 10 ruas x 7 posições = 70 vagas cada
+  const BUFFER_CAPACITY_EACH = 70;
+  const BUFFER_CAPACITY = BUFFER_CAPACITY_EACH * 2; // EHA + RTS = 140
+  // Ocupação real por buffer (independe dos filtros do usuário)
+  const { ehaOccupied, rtsOccupied } = useMemo(() => {
+    const eha = new Set<string>();
+    const rts = new Set<string>();
     opRows.forEach((r) => {
       if (r.ruaNum == null) return;
       const idx = ((r.ruaNum - 1) % 70 + 70) % 70;
-      set.add(`${r.buffer}-${idx}`);
+      if (r.buffer === "EHA") eha.add(String(idx));
+      else if (r.buffer === "RTS") rts.add(String(idx));
     });
-    return set.size;
+    return { ehaOccupied: eha.size, rtsOccupied: rts.size };
   }, [opRows]);
-  const freeSlots = Math.max(0, BUFFER_CAPACITY - occupiedSlots);
+  const ehaFree = Math.max(0, BUFFER_CAPACITY_EACH - ehaOccupied);
+  const rtsFree = Math.max(0, BUFFER_CAPACITY_EACH - rtsOccupied);
+  const ehaPct = Math.round((ehaOccupied / BUFFER_CAPACITY_EACH) * 100);
+  const rtsPct = Math.round((rtsOccupied / BUFFER_CAPACITY_EACH) * 100);
+  const occupiedSlots = ehaOccupied + rtsOccupied;
+  const freeSlots = ehaFree + rtsFree;
   const occupancyPct = Math.round((occupiedSlots / BUFFER_CAPACITY) * 100);
-  const occupancyTone: "default" | "warning" | "danger" =
-    occupancyPct >= 90 ? "danger" : occupancyPct >= 75 ? "warning" : "default";
+  const toneFor = (pct: number): "default" | "warning" | "danger" =>
+    pct >= 90 ? "danger" : pct >= 75 ? "warning" : "default";
+  const ehaTone = toneFor(ehaPct);
+  const rtsTone = toneFor(rtsPct);
 
   const donutData = [
     { name: "Ocupado", value: occupiedSlots, fill: "var(--color-chart-1)" },

@@ -292,9 +292,14 @@ export function OperationScreen() {
           transition={{ duration: 0.35, delay: 0.1 }}
           className="glass rounded-2xl p-5"
         >
-          <h3 className="mb-3 text-sm font-bold uppercase tracking-wider">
-            Ocupação do buffer
-          </h3>
+          <div className="mb-3 flex items-baseline justify-between gap-2">
+            <h3 className="text-sm font-bold uppercase tracking-wider">
+              Ocupação do buffer
+            </h3>
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+              Cap. {BUFFER_CAPACITY}
+            </span>
+          </div>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -326,16 +331,16 @@ export function OperationScreen() {
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <LegendItem
-              color="var(--color-chart-2)"
-              label="EHA"
-              value={ehaCount}
-              total={ehaCount + rtsCount || 1}
+              color="var(--color-chart-1)"
+              label="Ocupado"
+              value={occupiedSlots}
+              total={BUFFER_CAPACITY}
             />
             <LegendItem
-              color="var(--color-chart-1)"
-              label="RTS"
-              value={rtsCount}
-              total={ehaCount + rtsCount || 1}
+              color="var(--color-chart-2)"
+              label="Livre"
+              value={freeSlots}
+              total={BUFFER_CAPACITY}
             />
           </div>
         </motion.div>

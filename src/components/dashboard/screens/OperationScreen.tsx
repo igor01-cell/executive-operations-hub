@@ -140,22 +140,32 @@ export function OperationScreen() {
   const ehaCount = filtered.filter((r) => r.buffer === "EHA").length;
   const rtsCount = filtered.filter((r) => r.buffer === "RTS").length;
 
-  // Capacidade física do buffer operacional: EHA (10x7) + RTS (10x7) = 140 vagas
-  const BUFFER_CAPACITY = 140;
-  // Ocupação real (independe dos filtros do usuário) — vagas únicas ocupadas em EHA+RTS
-  const occupiedSlots = useMemo(() => {
-    const set = new Set<string>();
+  // Capacidade física por buffer: 10 ruas x 7 posições = 70 vagas cada
+  const BUFFER_CAPACITY_EACH = 70;
+  const BUFFER_CAPACITY = BUFFER_CAPACITY_EACH * 2; // EHA + RTS = 140
+  // Ocupação real por buffer (independe dos filtros do usuário)
+  const { ehaOccupied, rtsOccupied } = useMemo(() => {
+    const eha = new Set<string>();
+    const rts = new Set<string>();
     opRows.forEach((r) => {
       if (r.ruaNum == null) return;
       const idx = ((r.ruaNum - 1) % 70 + 70) % 70;
-      set.add(`${r.buffer}-${idx}`);
+      if (r.buffer === "EHA") eha.add(String(idx));
+      else if (r.buffer === "RTS") rts.add(String(idx));
     });
-    return set.size;
+    return { ehaOccupied: eha.size, rtsOccupied: rts.size };
   }, [opRows]);
-  const freeSlots = Math.max(0, BUFFER_CAPACITY - occupiedSlots);
+  const ehaFree = Math.max(0, BUFFER_CAPACITY_EACH - ehaOccupied);
+  const rtsFree = Math.max(0, BUFFER_CAPACITY_EACH - rtsOccupied);
+  const ehaPct = Math.round((ehaOccupied / BUFFER_CAPACITY_EACH) * 100);
+  const rtsPct = Math.round((rtsOccupied / BUFFER_CAPACITY_EACH) * 100);
+  const occupiedSlots = ehaOccupied + rtsOccupied;
+  const freeSlots = ehaFree + rtsFree;
   const occupancyPct = Math.round((occupiedSlots / BUFFER_CAPACITY) * 100);
-  const occupancyTone: "default" | "warning" | "danger" =
-    occupancyPct >= 90 ? "danger" : occupancyPct >= 75 ? "warning" : "default";
+  const toneFor = (pct: number): "default" | "warning" | "danger" =>
+    pct >= 90 ? "danger" : pct >= 75 ? "warning" : "default";
+  const ehaTone = toneFor(ehaPct);
+  const rtsTone = toneFor(rtsPct);
 
   const donutData = [
     { name: "Ocupado", value: occupiedSlots, fill: "var(--color-chart-1)" },
@@ -183,9 +193,10 @@ export function OperationScreen() {
         )}
       </AnimatePresence>
 
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 sm:gap-4">
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 sm:gap-4">
         {showSkeleton ? (
           <>
+            <KpiSkeleton />
             <KpiSkeleton />
             <KpiSkeleton />
             <KpiSkeleton />
@@ -204,14 +215,22 @@ export function OperationScreen() {
             />
             <KpiCard
               index={1}
-              label="Stage In"
-              value={`${occupiedSlots}/${BUFFER_CAPACITY}`}
-              hint={`${occupancyPct}% ocupado · ${freeSlots} livres`}
-              tone={occupancyTone}
+              label="Stage In · EHA"
+              value={`${ehaOccupied}/${BUFFER_CAPACITY_EACH}`}
+              hint={`${ehaPct}% ocupado · ${ehaFree} livres`}
+              tone={ehaTone}
               icon={<Warehouse className="h-5 w-5" />}
             />
             <KpiCard
               index={2}
+              label="Stage In · RTS"
+              value={`${rtsOccupied}/${BUFFER_CAPACITY_EACH}`}
+              hint={`${rtsPct}% ocupado · ${rtsFree} livres`}
+              tone={rtsTone}
+              icon={<Warehouse className="h-5 w-5" />}
+            />
+            <KpiCard
+              index={3}
               label="Total de gaiolas"
               value={totalGaiolas.toLocaleString("pt-BR")}
               hint={`${ehaCount} EHA · ${rtsCount} RTS`}
@@ -219,7 +238,7 @@ export function OperationScreen() {
               tone="info"
             />
             <KpiCard
-              index={3}
+              index={4}
               label="Aging médio"
               value={
                 withAging.length > 0 ? `${avgAging.toFixed(1)}d` : "—"
@@ -233,7 +252,7 @@ export function OperationScreen() {
               icon={<Clock className="h-5 w-5" />}
             />
             <KpiCard
-              index={4}
+              index={5}
               label="Pacotes em risco LOST"
               value={lostPacotes.toLocaleString("pt-BR")}
               hint=">14 dias na operação"
@@ -241,7 +260,7 @@ export function OperationScreen() {
               icon={<Box className="h-5 w-5" />}
             />
             <KpiCard
-              index={5}
+              index={6}
               label="Gaiolas em risco"
               value={lostGaiolas.toLocaleString("pt-BR")}
               hint="Status LOST"

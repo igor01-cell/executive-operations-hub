@@ -193,9 +193,10 @@ export function OperationScreen() {
         )}
       </AnimatePresence>
 
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 sm:gap-4">
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 sm:gap-4">
         {showSkeleton ? (
           <>
+            <KpiSkeleton />
             <KpiSkeleton />
             <KpiSkeleton />
             <KpiSkeleton />
@@ -214,14 +215,22 @@ export function OperationScreen() {
             />
             <KpiCard
               index={1}
-              label="Stage In"
-              value={`${occupiedSlots}/${BUFFER_CAPACITY}`}
-              hint={`${occupancyPct}% ocupado · ${freeSlots} livres`}
-              tone={occupancyTone}
+              label="Stage In · EHA"
+              value={`${ehaOccupied}/${BUFFER_CAPACITY_EACH}`}
+              hint={`${ehaPct}% ocupado · ${ehaFree} livres`}
+              tone={ehaTone}
               icon={<Warehouse className="h-5 w-5" />}
             />
             <KpiCard
               index={2}
+              label="Stage In · RTS"
+              value={`${rtsOccupied}/${BUFFER_CAPACITY_EACH}`}
+              hint={`${rtsPct}% ocupado · ${rtsFree} livres`}
+              tone={rtsTone}
+              icon={<Warehouse className="h-5 w-5" />}
+            />
+            <KpiCard
+              index={3}
               label="Total de gaiolas"
               value={totalGaiolas.toLocaleString("pt-BR")}
               hint={`${ehaCount} EHA · ${rtsCount} RTS`}
@@ -229,7 +238,7 @@ export function OperationScreen() {
               tone="info"
             />
             <KpiCard
-              index={3}
+              index={4}
               label="Aging médio"
               value={
                 withAging.length > 0 ? `${avgAging.toFixed(1)}d` : "—"
@@ -243,7 +252,7 @@ export function OperationScreen() {
               icon={<Clock className="h-5 w-5" />}
             />
             <KpiCard
-              index={4}
+              index={5}
               label="Pacotes em risco LOST"
               value={lostPacotes.toLocaleString("pt-BR")}
               hint=">14 dias na operação"
@@ -251,7 +260,7 @@ export function OperationScreen() {
               icon={<Box className="h-5 w-5" />}
             />
             <KpiCard
-              index={5}
+              index={6}
               label="Gaiolas em risco"
               value={lostGaiolas.toLocaleString("pt-BR")}
               hint="Status LOST"

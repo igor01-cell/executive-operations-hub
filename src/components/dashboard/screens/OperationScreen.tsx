@@ -186,7 +186,7 @@ export function OperationScreen() {
         )}
       </AnimatePresence>
 
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 sm:gap-4">
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 sm:gap-4">
         {showSkeleton ? (
           <>
             <KpiSkeleton />
@@ -251,14 +251,6 @@ export function OperationScreen() {
               hint=">14 dias na operação"
               tone="danger"
               icon={<Box className="h-5 w-5" />}
-            />
-            <KpiCard
-              index={6}
-              label="Gaiolas em risco"
-              value={lostGaiolas.toLocaleString("pt-BR")}
-              hint="Status LOST"
-              tone="danger"
-              icon={<ShieldAlert className="h-5 w-5" />}
             />
           </>
         )}

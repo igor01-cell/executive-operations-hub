@@ -252,14 +252,6 @@ export function OperationScreen() {
               tone="danger"
               icon={<Box className="h-5 w-5" />}
             />
-            <KpiCard
-              index={6}
-              label="Gaiolas em risco"
-              value={lostGaiolas.toLocaleString("pt-BR")}
-              hint="Status LOST"
-              tone="danger"
-              icon={<ShieldAlert className="h-5 w-5" />}
-            />
           </>
         )}
       </div>
